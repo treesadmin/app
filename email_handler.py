@@ -1915,6 +1915,8 @@ def handle(envelope: Envelope) -> str:
 
 
 class MailHandler:
+    app = new_app()
+
     async def handle_DATA(self, server, session, envelope: Envelope):
         try:
             ret = self._handle(envelope)
@@ -1941,8 +1943,7 @@ class MailHandler:
             envelope.rcpt_tos,
         )
 
-        app = new_app()
-        with app.app_context():
+        with self.app.app_context():
             ret = handle(envelope)
             elapsed = time.time() - start
             LOG.i(
