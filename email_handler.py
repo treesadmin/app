@@ -1727,11 +1727,15 @@ def should_ignore(mail_from: str, rcpt_tos: List[str]) -> bool:
 def handle(envelope: Envelope) -> str:
     """Return SMTP status"""
 
+    LOG.d("start handle")
+
     # sanitize mail_from, rcpt_tos
     mail_from = sanitize_email(envelope.mail_from)
     rcpt_tos = [sanitize_email(rcpt_to) for rcpt_to in envelope.rcpt_tos]
     envelope.mail_from = mail_from
     envelope.rcpt_tos = rcpt_tos
+
+    LOG.d("finish sanitize mail_form and rcpt_to")
 
     msg = email.message_from_bytes(envelope.original_content)
     postfix_queue_id = get_queue_id(msg)
@@ -1740,15 +1744,20 @@ def handle(envelope: Envelope) -> str:
     else:
         LOG.d("Cannot parse Postfix queue ID from %s", msg["Received"])
 
+    LOG.d("start should_ignore")
     if should_ignore(mail_from, rcpt_tos):
         LOG.w("Ignore email mail_from=%s rcpt_to=%s", mail_from, rcpt_tos)
         return status.E204
+
+    LOG.d("finish should_ignore")
 
     # sanitize email headers
     sanitize_header(msg, "from")
     sanitize_header(msg, "to")
     sanitize_header(msg, "cc")
     sanitize_header(msg, "reply-to")
+
+    LOG.d("finish sanitize header")
 
     LOG.d(
         "==>> Handle mail_from:%s, rcpt_tos:%s, header_from:%s, header_to:%s, "
