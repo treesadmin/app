@@ -1744,12 +1744,12 @@ def handle(envelope: Envelope) -> str:
     else:
         LOG.d("Cannot parse Postfix queue ID from %s", msg["Received"])
 
-    LOG.d("start should_ignore")
-    if should_ignore(mail_from, rcpt_tos):
-        LOG.w("Ignore email mail_from=%s rcpt_to=%s", mail_from, rcpt_tos)
-        return status.E204
-
-    LOG.d("finish should_ignore")
+    # LOG.d("start should_ignore")
+    # if should_ignore(mail_from, rcpt_tos):
+    #     LOG.w("Ignore email mail_from=%s rcpt_to=%s", mail_from, rcpt_tos)
+    #     return status.E204
+    #
+    # LOG.d("finish should_ignore")
 
     # sanitize email headers
     sanitize_header(msg, "from")
