@@ -25,69 +25,67 @@ def custom_domain():
 
     errors = {}
 
-    if request.method == "POST":
-        if request.form.get("form-name") == "create":
-            if not current_user.is_premium():
-                flash("Only premium plan can add custom domain", "warning")
-                return redirect(url_for("dashboard.custom_domain"))
+    if request.method == "POST" and request.form.get("form-name") == "create":
+        if not current_user.is_premium():
+            flash("Only premium plan can add custom domain", "warning")
+            return redirect(url_for("dashboard.custom_domain"))
 
-            if new_custom_domain_form.validate():
-                new_domain = new_custom_domain_form.domain.data.lower().strip()
+        if new_custom_domain_form.validate():
+            new_domain = new_custom_domain_form.domain.data.lower().strip()
 
-                if new_domain.startswith("http://"):
-                    new_domain = new_domain[len("http://") :]
+            if new_domain.startswith("http://"):
+                new_domain = new_domain[len("http://") :]
 
-                if new_domain.startswith("https://"):
-                    new_domain = new_domain[len("https://") :]
+            if new_domain.startswith("https://"):
+                new_domain = new_domain[len("https://") :]
 
-                if SLDomain.get_by(domain=new_domain):
-                    flash("A custom domain cannot be a built-in domain.", "error")
-                elif CustomDomain.get_by(domain=new_domain):
-                    flash(f"{new_domain} already used", "warning")
-                elif get_email_domain_part(current_user.email) == new_domain:
-                    flash(
-                        "You cannot add a domain that you are currently using for your personal email. "
-                        "Please change your personal email to your real email",
-                        "error",
-                    )
-                else:
-                    new_custom_domain = CustomDomain.create(
-                        domain=new_domain, user_id=current_user.id
-                    )
+            if SLDomain.get_by(domain=new_domain):
+                flash("A custom domain cannot be a built-in domain.", "error")
+            elif CustomDomain.get_by(domain=new_domain):
+                flash(f"{new_domain} already used", "warning")
+            elif get_email_domain_part(current_user.email) == new_domain:
+                flash(
+                    "You cannot add a domain that you are currently using for your personal email. "
+                    "Please change your personal email to your real email",
+                    "error",
+                )
+            else:
+                new_custom_domain = CustomDomain.create(
+                    domain=new_domain, user_id=current_user.id
+                )
+                db.session.commit()
+
+                if mailbox_ids := request.form.getlist("mailbox_ids"):
+                    # check if mailbox is not tempered with
+                    mailboxes = []
+                    for mailbox_id in mailbox_ids:
+                        mailbox = Mailbox.get(mailbox_id)
+                        if (
+                            not mailbox
+                            or mailbox.user_id != current_user.id
+                            or not mailbox.verified
+                        ):
+                            flash("Something went wrong, please retry", "warning")
+                            return redirect(url_for("dashboard.custom_domain"))
+                        mailboxes.append(mailbox)
+
+                    for mailbox in mailboxes:
+                        DomainMailbox.create(
+                            domain_id=new_custom_domain.id, mailbox_id=mailbox.id
+                        )
+
                     db.session.commit()
 
-                    mailbox_ids = request.form.getlist("mailbox_ids")
-                    if mailbox_ids:
-                        # check if mailbox is not tempered with
-                        mailboxes = []
-                        for mailbox_id in mailbox_ids:
-                            mailbox = Mailbox.get(mailbox_id)
-                            if (
-                                not mailbox
-                                or mailbox.user_id != current_user.id
-                                or not mailbox.verified
-                            ):
-                                flash("Something went wrong, please retry", "warning")
-                                return redirect(url_for("dashboard.custom_domain"))
-                            mailboxes.append(mailbox)
+                flash(
+                    f"New domain {new_custom_domain.domain} is created", "success"
+                )
 
-                        for mailbox in mailboxes:
-                            DomainMailbox.create(
-                                domain_id=new_custom_domain.id, mailbox_id=mailbox.id
-                            )
-
-                        db.session.commit()
-
-                    flash(
-                        f"New domain {new_custom_domain.domain} is created", "success"
+                return redirect(
+                    url_for(
+                        "dashboard.domain_detail_dns",
+                        custom_domain_id=new_custom_domain.id,
                     )
-
-                    return redirect(
-                        url_for(
-                            "dashboard.domain_detail_dns",
-                            custom_domain_id=new_custom_domain.id,
-                        )
-                    )
+                )
 
     return render_template(
         "dashboard/custom_domain.html",

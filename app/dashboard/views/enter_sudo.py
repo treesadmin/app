@@ -27,9 +27,7 @@ def enter_sudo():
         if current_user.check_password(password):
             session["sudo_time"] = int(time())
 
-            # User comes to sudo page from another page
-            next_url = request.args.get("next")
-            if next_url:
+            if next_url := request.args.get("next"):
                 LOG.d("redirect user to %s", next_url)
                 return redirect(next_url)
             else:

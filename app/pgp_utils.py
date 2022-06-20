@@ -68,16 +68,14 @@ def encrypt_file(data: BytesIO, fingerprint: str) -> str:
     if not r.ok:
         # maybe the fingerprint is not loaded on this host, try to load it
         found = False
-        # searching for the key in mailbox
-        mailbox = Mailbox.get_by(pgp_finger_print=fingerprint, disable_pgp=False)
-        if mailbox:
+        if mailbox := Mailbox.get_by(
+            pgp_finger_print=fingerprint, disable_pgp=False
+        ):
             LOG.d("(re-)load public key for %s", mailbox)
             load_public_key(mailbox.pgp_public_key)
             found = True
 
-        # searching for the key in contact
-        contact = Contact.get_by(pgp_finger_print=fingerprint)
-        if contact:
+        if contact := Contact.get_by(pgp_finger_print=fingerprint):
             LOG.d("(re-)load public key for %s", contact)
             load_public_key(contact.pgp_public_key)
             found = True
@@ -87,8 +85,8 @@ def encrypt_file(data: BytesIO, fingerprint: str) -> str:
             data.seek(0)
             r = gpg.encrypt_file(data, fingerprint, always_trust=True)
 
-        if not r.ok:
-            raise PGPException(f"Cannot encrypt, status: {r.status}")
+    if not r.ok:
+        raise PGPException(f"Cannot encrypt, status: {r.status}")
 
     return str(r)
 
@@ -97,9 +95,7 @@ def encrypt_file_with_pgpy(data: bytes, public_key: str) -> PGPMessage:
     key = pgpy.PGPKey()
     key.parse(public_key)
     msg = pgpy.PGPMessage.new(data, encoding="utf-8")
-    r = key.encrypt(msg)
-
-    return r
+    return key.encrypt(msg)
 
 
 if PGP_SENDER_PRIVATE_KEY:
@@ -107,12 +103,10 @@ if PGP_SENDER_PRIVATE_KEY:
 
 
 def sign_data(data: Union[str, bytes]) -> str:
-    signature = str(gpg.sign(data, keyid=_SIGN_KEY_ID, detach=True))
-    return signature
+    return str(gpg.sign(data, keyid=_SIGN_KEY_ID, detach=True))
 
 
 def sign_data_with_pgpy(data: Union[str, bytes]) -> str:
     key = pgpy.PGPKey()
     key.parse(PGP_SENDER_PRIVATE_KEY)
-    signature = str(key.sign(data))
-    return signature
+    return str(key.sign(data))

@@ -59,14 +59,14 @@ def get_available_suffixes(user: User) -> [SuffixInfo]:
     # for each user domain, generate both the domain and a random suffix version
     for custom_domain in user_custom_domains:
         if custom_domain.random_prefix_generation:
-            suffix = "." + user.get_random_alias_suffix() + "@" + custom_domain.domain
+            suffix = f".{user.get_random_alias_suffix()}@{custom_domain.domain}"
             suffix_info = SuffixInfo(True, suffix, signer.sign(suffix).decode(), False)
             if user.default_alias_custom_domain_id == custom_domain.id:
                 suffixes.insert(0, suffix_info)
             else:
                 suffixes.append(suffix_info)
 
-        suffix = "@" + custom_domain.domain
+        suffix = f"@{custom_domain.domain}"
         suffix_info = SuffixInfo(True, suffix, signer.sign(suffix).decode(), False)
 
         # put the default domain to top
@@ -82,10 +82,14 @@ def get_available_suffixes(user: User) -> [SuffixInfo]:
     # then SimpleLogin domain
     for sl_domain in user.get_sl_domains():
         suffix = (
-            ("" if DISABLE_ALIAS_SUFFIX else "." + user.get_random_alias_suffix())
+            (
+                ""
+                if DISABLE_ALIAS_SUFFIX
+                else f".{user.get_random_alias_suffix()}"
+            )
             + "@"
-            + sl_domain.domain
-        )
+        ) + sl_domain.domain
+
         suffix_info = SuffixInfo(
             False, suffix, signer.sign(suffix).decode(), sl_domain.premium_only
         )
@@ -131,7 +135,7 @@ def get_alias_suffixes(user: User) -> [AliasSuffix]:
     # for each user domain, generate both the domain and a random suffix version
     for custom_domain in user_custom_domains:
         if custom_domain.random_prefix_generation:
-            suffix = "." + user.get_random_alias_suffix() + "@" + custom_domain.domain
+            suffix = f".{user.get_random_alias_suffix()}@{custom_domain.domain}"
             alias_suffix = AliasSuffix(
                 is_custom=True,
                 suffix=suffix,
@@ -143,7 +147,7 @@ def get_alias_suffixes(user: User) -> [AliasSuffix]:
             else:
                 alias_suffixes.append(alias_suffix)
 
-        suffix = "@" + custom_domain.domain
+        suffix = f"@{custom_domain.domain}"
         alias_suffix = AliasSuffix(
             is_custom=True, suffix=suffix, is_premium=False, domain=custom_domain.domain
         )
@@ -161,10 +165,14 @@ def get_alias_suffixes(user: User) -> [AliasSuffix]:
     # then SimpleLogin domain
     for sl_domain in user.get_sl_domains():
         suffix = (
-            ("" if DISABLE_ALIAS_SUFFIX else "." + user.get_random_alias_suffix())
+            (
+                ""
+                if DISABLE_ALIAS_SUFFIX
+                else f".{user.get_random_alias_suffix()}"
+            )
             + "@"
-            + sl_domain.domain
-        )
+        ) + sl_domain.domain
+
         alias_suffix = AliasSuffix(
             is_custom=False,
             suffix=suffix,
@@ -196,11 +204,10 @@ def custom_alias():
 
     user_custom_domains = [cd.domain for cd in current_user.verified_custom_domains()]
     alias_suffixes = get_alias_suffixes(current_user)
-    at_least_a_premium_domain = False
-    for alias_suffix in alias_suffixes:
-        if not alias_suffix.is_custom and alias_suffix.is_premium:
-            at_least_a_premium_domain = True
-            break
+    at_least_a_premium_domain = any(
+        not alias_suffix.is_custom and alias_suffix.is_premium
+        for alias_suffix in alias_suffixes
+    )
 
     alias_suffixes_with_signature = [
         (alias_suffix, signer.sign(alias_suffix.serialize()).decode())
@@ -294,9 +301,7 @@ def custom_alias():
                 # get the custom_domain_id if alias is created with a custom domain
                 if alias_suffix.is_custom:
                     alias_domain = alias_suffix.domain
-                    domain = CustomDomain.get_by(domain=alias_domain)
-
-                    if domain:
+                    if domain := CustomDomain.get_by(domain=alias_domain):
                         custom_domain_id = domain.id
 
                 try:
@@ -324,7 +329,6 @@ def custom_alias():
                 flash(f"Alias {full_alias} has been created", "success")
 
                 return redirect(url_for("dashboard.index", highlight_alias_id=alias.id))
-        # only happen if the request has been "hacked"
         else:
             flash("something went wrong", "warning")
 
@@ -368,14 +372,13 @@ def verify_prefix_suffix(user: User, alias_prefix, alias_suffix) -> bool:
             LOG.e("User %s submits a wrong alias suffix %s", user, alias_suffix)
             return False
 
-    else:
-        if alias_domain not in user_custom_domains:
-            if not DISABLE_ALIAS_SUFFIX:
-                LOG.e("wrong alias suffix %s, user %s", alias_suffix, user)
-                return False
+    elif alias_domain not in user_custom_domains:
+        if not DISABLE_ALIAS_SUFFIX:
+            LOG.e("wrong alias suffix %s, user %s", alias_suffix, user)
+            return False
 
-            if alias_domain not in user.available_sl_domains():
-                LOG.e("wrong alias suffix %s, user %s", alias_suffix, user)
-                return False
+        if alias_domain not in user.available_sl_domains():
+            LOG.e("wrong alias suffix %s, user %s", alias_suffix, user)
+            return False
 
     return True

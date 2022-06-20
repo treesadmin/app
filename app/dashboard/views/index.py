@@ -60,10 +60,7 @@ def index():
     sort = request.args.get("sort") or ""
     alias_filter = request.args.get("filter") or ""
 
-    page = 0
-    if request.args.get("page"):
-        page = int(request.args.get("page"))
-
+    page = int(request.args.get("page")) if request.args.get("page") else 0
     highlight_alias_id = None
     if request.args.get("highlight_alias_id"):
         try:
@@ -167,10 +164,9 @@ def index():
     if highlight_alias_id and highlight_alias_id not in [
         alias_info.alias.id for alias_info in alias_infos
     ]:
-        highlight_alias_info = get_alias_info_v3(
+        if highlight_alias_info := get_alias_info_v3(
             current_user, alias_id=highlight_alias_id
-        )
-        if highlight_alias_info:
+        ):
             alias_infos.insert(0, highlight_alias_info)
 
     return render_template(

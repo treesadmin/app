@@ -127,7 +127,7 @@ def notify_premium_end():
 
             send_email(
                 user.email,
-                f"Your subscription will end soon",
+                "Your subscription will end soon",
                 render(
                     "transactional/subscription-end.txt",
                     user=user,
@@ -154,7 +154,7 @@ def notify_manual_sub_end():
             LOG.d("Remind user %s that their manual sub is ending soon", user)
             send_email(
                 user.email,
-                f"Your subscription will end soon",
+                "Your subscription will end soon",
                 render(
                     "transactional/manual-subscription-end.txt",
                     user=user,
@@ -167,7 +167,8 @@ def notify_manual_sub_end():
                 ),
             )
 
-    extend_subscription_url = URL + "/dashboard/coinbase_checkout"
+
+    extend_subscription_url = f"{URL}/dashboard/coinbase_checkout"
     for coinbase_subscription in CoinbaseSubscription.query.all():
         need_reminder = False
         if (
@@ -219,10 +220,11 @@ def compute_metric2() -> Metric2:
     now = arrow.now()
     _24h_ago = now.shift(days=-1)
 
-    nb_referred_user_paid = 0
-    for user in User.query.filter(User.referral_id.isnot(None)):
-        if user.is_paid():
-            nb_referred_user_paid += 1
+    nb_referred_user_paid = sum(
+        1
+        for user in User.query.filter(User.referral_id.isnot(None))
+        if user.is_paid()
+    )
 
     return Metric2.create(
         date=now,
@@ -313,11 +315,7 @@ def bounce_report() -> List[Tuple[str, int]]:
         .order_by(desc("count"))
     )
 
-    res = []
-    for email, count in query:
-        res.append((email, count))
-
-    return res
+    return list(query)
 
 
 def alias_creation_report() -> List[Tuple[str, int]]:
@@ -362,11 +360,7 @@ def alias_creation_report() -> List[Tuple[str, int]]:
         .order_by(desc("count"))
     )
 
-    res = []
-    for email, count, date in query:
-        res.append((email, count, date))
-
-    return res
+    return list(query)
 
 
 def stats():
@@ -412,14 +406,14 @@ nb_referred_user: {stats_today.nb_referred_user} - {increase_percent(stats_yeste
 nb_referred_user_upgrade: {stats_today.nb_referred_user_paid} - {increase_percent(stats_yesterday.nb_referred_user_paid, stats_today.nb_referred_user_paid)}  <br>
     """
 
-    html += f"""<br>
+    html += """<br>
     Bounce report: <br>
     """
 
     for email, bounces in bounce_report():
         html += f"{email}: {bounces} <br>"
 
-    html += f"""<br><br>
+    html += """<br><br>
     Alias creation report: <br>
     """
 
@@ -441,8 +435,7 @@ def migrate_domain_trash():
     for deleted_alias in DeletedAlias.query.all():
         alias_domain = get_email_domain_part(deleted_alias.email)
         if not SLDomain.get_by(domain=alias_domain):
-            custom_domain = CustomDomain.get_by(domain=alias_domain)
-            if custom_domain:
+            if custom_domain := CustomDomain.get_by(domain=alias_domain):
                 LOG.e("move %s to domain %s trash", deleted_alias, custom_domain)
                 db.session.add(
                     DomainDeletedAlias(
@@ -466,11 +459,10 @@ def set_custom_domain_for_alias():
             and not alias.custom_domain_id
         ):
             alias_domain = get_email_domain_part(alias.email)
-            custom_domain = CustomDomain.get_by(domain=alias_domain)
-            if custom_domain:
+            if custom_domain := CustomDomain.get_by(domain=alias_domain):
                 LOG.e("set %s for %s", custom_domain, alias)
                 alias.custom_domain_id = custom_domain.id
-            else:  # phantom domain
+            else:
                 LOG.d("phantom domain %s %s %s", alias.user, alias, alias.enabled)
 
     db.session.commit()
@@ -505,19 +497,21 @@ def sanity_check():
             nb_email_log = nb_email_log_for_mailbox(mailbox)
 
             # send a warning
-            if mailbox.nb_failed_checks == 5:
-                if mailbox.user.email != mailbox.email:
-                    send_email(
-                        mailbox.user.email,
-                        f"Mailbox {mailbox.email} is disabled",
-                        render(
-                            "transactional/disable-mailbox-warning.txt", mailbox=mailbox
-                        ),
-                        render(
-                            "transactional/disable-mailbox-warning.html",
-                            mailbox=mailbox,
-                        ),
-                    )
+            if (
+                mailbox.nb_failed_checks == 5
+                and mailbox.user.email != mailbox.email
+            ):
+                send_email(
+                    mailbox.user.email,
+                    f"Mailbox {mailbox.email} is disabled",
+                    render(
+                        "transactional/disable-mailbox-warning.txt", mailbox=mailbox
+                    ),
+                    render(
+                        "transactional/disable-mailbox-warning.html",
+                        mailbox=mailbox,
+                    ),
+                )
 
             # alert if too much fail and nb_email_log > 100
             if mailbox.nb_failed_checks > 10 and nb_email_log > 100:
@@ -686,7 +680,7 @@ async def _hibp_check(api_key, queue):
             alias.hibp_breaches = [
                 Hibp.get_by(name=entry["Name"]) for entry in r.json()
             ]
-            if len(alias.hibp_breaches) > 0:
+            if alias.hibp_breaches:
                 LOG.w("%s appears in HIBP breaches %s", alias, alias.hibp_breaches)
         elif r.status_code == 404:
             # No breaches found
@@ -797,14 +791,15 @@ def notify_hibp():
         )
 
         LOG.d(
-            f"Send new breaches found email to %s for %s breaches aliases",
+            "Send new breaches found email to %s for %s breaches aliases",
             user,
             len(breached_aliases),
         )
 
+
         send_email(
             user.email,
-            f"You were in a data breach",
+            "You were in a data breach",
             render(
                 "transactional/hibp-new-breaches.txt.jinja2",
                 user=user,
@@ -816,6 +811,7 @@ def notify_hibp():
                 breached_aliases=breached_aliases,
             ),
         )
+
 
         # add the breached aliases to HibpNotifiedAlias to avoid sending another email
         for alias in breached_aliases:

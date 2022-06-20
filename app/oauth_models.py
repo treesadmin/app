@@ -34,19 +34,19 @@ SUPPORTED_OPENID_FLOWS_STR = "code|token|id_token|id_token,token|id_token,code"
 def get_scopes(request: flask.Request) -> Set[Scope]:
     scope_strs = _split_arg(request.args.getlist("scope"))
 
-    return set([Scope(scope_str) for scope_str in scope_strs])
+    return {Scope(scope_str) for scope_str in scope_strs}
 
 
 def get_response_types(request: flask.Request) -> Set[ResponseType]:
     response_type_strs = _split_arg(request.args.getlist("response_type"))
 
-    return set([ResponseType(r) for r in response_type_strs if r])
+    return {ResponseType(r) for r in response_type_strs if r}
 
 
 def get_response_types_from_str(response_type_str) -> Set[ResponseType]:
     response_type_strs = _split_arg(response_type_str)
 
-    return set([ResponseType(r) for r in response_type_strs if r])
+    return {ResponseType(r) for r in response_type_strs if r}
 
 
 def response_types_to_str(response_types: [ResponseType]) -> str:

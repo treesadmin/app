@@ -21,7 +21,7 @@ _scope = [
 
 # need to set explicitly redirect_uri instead of leaving the lib to pre-fill redirect_uri
 # when served behind nginx, the redirect_uri is localhost... and not the real url
-_redirect_uri = URL + "/auth/google/callback"
+_redirect_uri = f"{URL}/auth/google/callback"
 
 
 @auth_bp.route("/google/login")
@@ -29,11 +29,7 @@ def google_login():
     # to avoid flask-login displaying the login error message
     session.pop("_flashes", None)
 
-    next_url = request.args.get("next")
-
-    # Google does not allow to append param to redirect_url
-    # we need to pass the next url by session
-    if next_url:
+    if next_url := request.args.get("next"):
         session["google_next_url"] = next_url
 
     google = OAuth2Session(GOOGLE_CLIENT_ID, scope=_scope, redirect_uri=_redirect_uri)

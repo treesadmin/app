@@ -66,19 +66,15 @@ def rate_limited_for_mailbox(alias: Alias) -> bool:
 
 
 def rate_limited_forward_phase(alias_address: str) -> bool:
-    alias = Alias.get_by(email=alias_address)
-
-    if alias:
+    if alias := Alias.get_by(email=alias_address):
         return rate_limited_for_alias(alias) or rate_limited_for_mailbox(alias)
 
-    else:
-        LOG.d(
-            "alias %s not exist. Try to see if it can be created on the fly",
-            alias_address,
-        )
-        alias = try_auto_create(alias_address)
-        if alias:
-            return rate_limited_for_mailbox(alias)
+    LOG.d(
+        "alias %s not exist. Try to see if it can be created on the fly",
+        alias_address,
+    )
+    if alias := try_auto_create(alias_address):
+        return rate_limited_for_mailbox(alias)
 
     return False
 

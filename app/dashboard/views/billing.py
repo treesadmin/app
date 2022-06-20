@@ -19,12 +19,10 @@ def billing():
         flash("You don't have any active subscription", "warning")
         return redirect(url_for("dashboard.index"))
 
-    if request.method == "POST":
-        if request.form.get("form-name") == "cancel":
+    if request.form.get("form-name") == "cancel":
+        if request.method == "POST":
             LOG.w(f"User {current_user} cancels their subscription")
-            success = cancel_subscription(sub.subscription_id)
-
-            if success:
+            if success := cancel_subscription(sub.subscription_id):
                 sub.cancelled = True
                 db.session.commit()
                 flash("Your subscription has been canceled successfully", "success")
@@ -36,7 +34,8 @@ def billing():
                 )
 
             return redirect(url_for("dashboard.billing"))
-        elif request.form.get("form-name") == "change-monthly":
+    elif request.form.get("form-name") == "change-monthly":
+        if request.method == "POST":
             LOG.d(f"User {current_user} changes to monthly plan")
             success, msg = change_plan(
                 current_user, sub.subscription_id, PADDLE_MONTHLY_PRODUCT_ID
@@ -46,18 +45,18 @@ def billing():
                 sub.plan = PlanEnum.monthly
                 db.session.commit()
                 flash("Your subscription has been updated", "success")
+            elif msg:
+                flash(msg, "error")
             else:
-                if msg:
-                    flash(msg, "error")
-                else:
-                    flash(
-                        "Something went wrong, sorry for the inconvenience. Please retry. "
-                        "We are already notified and will be on it asap",
-                        "error",
-                    )
+                flash(
+                    "Something went wrong, sorry for the inconvenience. Please retry. "
+                    "We are already notified and will be on it asap",
+                    "error",
+                )
 
             return redirect(url_for("dashboard.billing"))
-        elif request.form.get("form-name") == "change-yearly":
+    elif request.form.get("form-name") == "change-yearly":
+        if request.method == "POST":
             LOG.d(f"User {current_user} changes to yearly plan")
             success, msg = change_plan(
                 current_user, sub.subscription_id, PADDLE_YEARLY_PRODUCT_ID
@@ -67,15 +66,14 @@ def billing():
                 sub.plan = PlanEnum.yearly
                 db.session.commit()
                 flash("Your subscription has been updated", "success")
+            elif msg:
+                flash(msg, "error")
             else:
-                if msg:
-                    flash(msg, "error")
-                else:
-                    flash(
-                        "Something went wrong, sorry for the inconvenience. Please retry. "
-                        "We are already notified and will be on it asap",
-                        "error",
-                    )
+                flash(
+                    "Something went wrong, sorry for the inconvenience. Please retry. "
+                    "We are already notified and will be on it asap",
+                    "error",
+                )
 
             return redirect(url_for("dashboard.billing"))
 

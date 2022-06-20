@@ -17,40 +17,39 @@ def contact_detail_route(contact_id):
 
     alias = contact.alias
 
-    if request.method == "POST":
-        if request.form.get("form-name") == "pgp":
-            if request.form.get("action") == "save":
-                if not current_user.is_premium():
-                    flash("Only premium plan can add PGP Key", "warning")
-                    return redirect(
-                        url_for("dashboard.contact_detail_route", contact_id=contact_id)
-                    )
-
-                contact.pgp_public_key = request.form.get("pgp")
-                try:
-                    contact.pgp_finger_print = load_public_key_and_check(
-                        contact.pgp_public_key
-                    )
-                except PGPException:
-                    flash("Cannot add the public key, please verify it", "error")
-                else:
-                    db.session.commit()
-                    flash(
-                        f"PGP public key for {contact.email} is saved successfully",
-                        "success",
-                    )
-                    return redirect(
-                        url_for("dashboard.contact_detail_route", contact_id=contact_id)
-                    )
-            elif request.form.get("action") == "remove":
-                # Free user can decide to remove contact PGP key
-                contact.pgp_public_key = None
-                contact.pgp_finger_print = None
-                db.session.commit()
-                flash(f"PGP public key for {contact.email} is removed", "success")
+    if request.method == "POST" and request.form.get("form-name") == "pgp":
+        if request.form.get("action") == "save":
+            if not current_user.is_premium():
+                flash("Only premium plan can add PGP Key", "warning")
                 return redirect(
                     url_for("dashboard.contact_detail_route", contact_id=contact_id)
                 )
+
+            contact.pgp_public_key = request.form.get("pgp")
+            try:
+                contact.pgp_finger_print = load_public_key_and_check(
+                    contact.pgp_public_key
+                )
+            except PGPException:
+                flash("Cannot add the public key, please verify it", "error")
+            else:
+                db.session.commit()
+                flash(
+                    f"PGP public key for {contact.email} is saved successfully",
+                    "success",
+                )
+                return redirect(
+                    url_for("dashboard.contact_detail_route", contact_id=contact_id)
+                )
+        elif request.form.get("action") == "remove":
+            # Free user can decide to remove contact PGP key
+            contact.pgp_public_key = None
+            contact.pgp_finger_print = None
+            db.session.commit()
+            flash(f"PGP public key for {contact.email} is removed", "success")
+            return redirect(
+                url_for("dashboard.contact_detail_route", contact_id=contact_id)
+            )
 
     return render_template(
         "dashboard/contact_detail.html", contact=contact, alias=alias

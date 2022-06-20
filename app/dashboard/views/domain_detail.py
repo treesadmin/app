@@ -120,7 +120,7 @@ def domain_detail_dns(custom_domain_id):
                 spf_errors = get_txt_record(custom_domain.domain)
 
         elif request.form.get("form-name") == "check-dkim":
-            dkim_record = get_cname_record("dkim._domainkey." + custom_domain.domain)
+            dkim_record = get_cname_record(f"dkim._domainkey.{custom_domain.domain}")
             if dkim_record == dkim_cname:
                 flash("DKIM is setup correctly.", "success")
                 custom_domain.dkim_verified = True
@@ -139,7 +139,7 @@ def domain_detail_dns(custom_domain_id):
                 dkim_errors = [dkim_record or "[Empty]"]
 
         elif request.form.get("form-name") == "check-dmarc":
-            txt_records = get_txt_record("_dmarc." + custom_domain.domain)
+            txt_records = get_txt_record(f"_dmarc.{custom_domain.domain}")
             if dmarc_record in txt_records:
                 custom_domain.dmarc_verified = True
                 db.session.commit()
@@ -409,85 +409,85 @@ def domain_detail_auto_create(custom_domain_id):
         flash("You cannot see this page", "warning")
         return redirect(url_for("dashboard.index"))
 
-    if request.method == "POST":
-        if request.form.get("form-name") == "create-auto-create-rule":
-            if new_auto_create_rule_form.validate():
-                # make sure order isn't used before
-                for auto_create_rule in custom_domain.auto_create_rules:
-                    auto_create_rule: AutoCreateRule
-                    if auto_create_rule.order == int(
-                        new_auto_create_rule_form.order.data
-                    ):
-                        flash(
-                            "Another rule with the same order already exists", "error"
-                        )
-                        break
-                else:
-                    mailbox_ids = request.form.getlist("mailbox_ids")
-                    # check if mailbox is not tempered with
-                    mailboxes = []
-                    for mailbox_id in mailbox_ids:
-                        mailbox = Mailbox.get(mailbox_id)
-                        if (
-                            not mailbox
-                            or mailbox.user_id != current_user.id
-                            or not mailbox.verified
-                        ):
-                            flash("Something went wrong, please retry", "warning")
-                            return redirect(
-                                url_for(
-                                    "dashboard.domain_detail_auto_create",
-                                    custom_domain_id=custom_domain.id,
-                                )
-                            )
-                        mailboxes.append(mailbox)
-
-                    if not mailboxes:
-                        flash("You must select at least 1 mailbox", "warning")
-                        return redirect(
-                            url_for(
-                                "dashboard.domain_detail_auto_create",
-                                custom_domain_id=custom_domain.id,
-                            )
-                        )
-
-                    try:
-                        re.compile(new_auto_create_rule_form.regex.data)
-                    except:
-                        flash(
-                            f"Invalid regex {new_auto_create_rule_form.regex.data}",
-                            "error",
-                        )
-                        return redirect(
-                            url_for(
-                                "dashboard.domain_detail_auto_create",
-                                custom_domain_id=custom_domain.id,
-                            )
-                        )
-
-                    rule = AutoCreateRule.create(
-                        custom_domain_id=custom_domain.id,
-                        order=int(new_auto_create_rule_form.order.data),
-                        regex=new_auto_create_rule_form.regex.data,
-                        flush=True,
+    if request.form.get("form-name") == "create-auto-create-rule":
+        if request.method == "POST" and new_auto_create_rule_form.validate():
+            # make sure order isn't used before
+            for auto_create_rule in custom_domain.auto_create_rules:
+                auto_create_rule: AutoCreateRule
+                if auto_create_rule.order == int(
+                    new_auto_create_rule_form.order.data
+                ):
+                    flash(
+                        "Another rule with the same order already exists", "error"
                     )
-
-                    for mailbox in mailboxes:
-                        AutoCreateRuleMailbox.create(
-                            auto_create_rule_id=rule.id, mailbox_id=mailbox.id
+                    break
+            else:
+                mailbox_ids = request.form.getlist("mailbox_ids")
+                # check if mailbox is not tempered with
+                mailboxes = []
+                for mailbox_id in mailbox_ids:
+                    mailbox = Mailbox.get(mailbox_id)
+                    if (
+                        not mailbox
+                        or mailbox.user_id != current_user.id
+                        or not mailbox.verified
+                    ):
+                        flash("Something went wrong, please retry", "warning")
+                        return redirect(
+                            url_for(
+                                "dashboard.domain_detail_auto_create",
+                                custom_domain_id=custom_domain.id,
+                            )
                         )
+                    mailboxes.append(mailbox)
 
-                    db.session.commit()
-
-                    flash("New auto create rule has been created", "success")
-
+                if not mailboxes:
+                    flash("You must select at least 1 mailbox", "warning")
                     return redirect(
                         url_for(
                             "dashboard.domain_detail_auto_create",
                             custom_domain_id=custom_domain.id,
                         )
                     )
-        elif request.form.get("form-name") == "delete-auto-create-rule":
+
+                try:
+                    re.compile(new_auto_create_rule_form.regex.data)
+                except:
+                    flash(
+                        f"Invalid regex {new_auto_create_rule_form.regex.data}",
+                        "error",
+                    )
+                    return redirect(
+                        url_for(
+                            "dashboard.domain_detail_auto_create",
+                            custom_domain_id=custom_domain.id,
+                        )
+                    )
+
+                rule = AutoCreateRule.create(
+                    custom_domain_id=custom_domain.id,
+                    order=int(new_auto_create_rule_form.order.data),
+                    regex=new_auto_create_rule_form.regex.data,
+                    flush=True,
+                )
+
+                for mailbox in mailboxes:
+                    AutoCreateRuleMailbox.create(
+                        auto_create_rule_id=rule.id, mailbox_id=mailbox.id
+                    )
+
+                db.session.commit()
+
+                flash("New auto create rule has been created", "success")
+
+                return redirect(
+                    url_for(
+                        "dashboard.domain_detail_auto_create",
+                        custom_domain_id=custom_domain.id,
+                    )
+                )
+    elif request.form.get("form-name") == "delete-auto-create-rule":
+        if request.method == "POST":
             rule_id = request.form.get("rule-id")
             rule: AutoCreateRule = AutoCreateRule.get(int(rule_id))
 
@@ -510,27 +510,27 @@ def domain_detail_auto_create(custom_domain_id):
                     custom_domain_id=custom_domain.id,
                 )
             )
-        elif request.form.get("form-name") == "test-auto-create-rule":
-            if auto_create_test_form.validate():
-                local = auto_create_test_form.local.data
-                auto_create_test_local = local
+    elif request.form.get("form-name") == "test-auto-create-rule":
+        if request.method == "POST" and auto_create_test_form.validate():
+            local = auto_create_test_form.local.data
+            auto_create_test_local = local
 
-                for rule in custom_domain.auto_create_rules:
-                    rule: AutoCreateRule
-                    regex = re.compile(rule.regex)
-                    if re.fullmatch(regex, local):
-                        auto_create_test_result = (
-                            f"{local}@{custom_domain.domain} passes rule #{rule.order}"
-                        )
-                        auto_create_test_passed = True
-                        break
-                else:  # no rule passes
+            for rule in custom_domain.auto_create_rules:
+                rule: AutoCreateRule
+                regex = re.compile(rule.regex)
+                if re.fullmatch(regex, local):
                     auto_create_test_result = (
-                        f"{local}@{custom_domain.domain} doesn't pass any rule"
+                        f"{local}@{custom_domain.domain} passes rule #{rule.order}"
                     )
-
-                return render_template(
-                    "dashboard/domain_detail/auto-create.html", **locals()
+                    auto_create_test_passed = True
+                    break
+            else:  # no rule passes
+                auto_create_test_result = (
+                    f"{local}@{custom_domain.domain} doesn't pass any rule"
                 )
+
+            return render_template(
+                "dashboard/domain_detail/auto-create.html", **locals()
+            )
 
     return render_template("dashboard/domain_detail/auto-create.html", **locals())

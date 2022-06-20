@@ -25,12 +25,10 @@ def unsubscribe(alias_id):
         )
         return redirect(url_for("dashboard.index"))
 
-    # automatic unsubscribe, according to https://tools.ietf.org/html/rfc8058
-    if request.method == "POST":
-        alias.enabled = False
-        flash(f"Alias {alias.email} has been blocked", "success")
-        db.session.commit()
-
-        return redirect(url_for("dashboard.index", highlight_alias_id=alias.id))
-    else:  # ask user confirmation
+    if request.method != "POST":
         return render_template("dashboard/unsubscribe.html", alias=alias.email)
+    alias.enabled = False
+    flash(f"Alias {alias.email} has been blocked", "success")
+    db.session.commit()
+
+    return redirect(url_for("dashboard.index", highlight_alias_id=alias.id))

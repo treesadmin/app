@@ -43,11 +43,9 @@ def try_auto_create(address: str) -> Optional[Alias]:
     except EmailNotValidError:
         return None
 
-    alias = try_auto_create_via_domain(address)
-    if not alias:
-        alias = try_auto_create_directory(address)
-
-    return alias
+    return try_auto_create_via_domain(address) or try_auto_create_directory(
+        address
+    )
 
 
 def try_auto_create_directory(address: str) -> Optional[Alias]:
@@ -55,70 +53,71 @@ def try_auto_create_directory(address: str) -> Optional[Alias]:
     Try to create an alias with directory
     """
     # check if alias belongs to a directory, ie having directory/anything@EMAIL_DOMAIN format
-    if can_create_directory_for_address(address):
-        # if there's no directory separator in the alias, no way to auto-create it
-        if "/" not in address and "+" not in address and "#" not in address:
-            return None
+    if not can_create_directory_for_address(address):
+        return
+    # if there's no directory separator in the alias, no way to auto-create it
+    if "/" not in address and "+" not in address and "#" not in address:
+        return None
 
-        # alias contains one of the 3 special directory separator: "/", "+" or "#"
-        if "/" in address:
-            sep = "/"
-        elif "+" in address:
-            sep = "+"
-        else:
-            sep = "#"
+    # alias contains one of the 3 special directory separator: "/", "+" or "#"
+    if "/" in address:
+        sep = "/"
+    elif "+" in address:
+        sep = "+"
+    else:
+        sep = "#"
 
-        directory_name = address[: address.find(sep)]
-        LOG.d("directory_name %s", directory_name)
+    directory_name = address[: address.find(sep)]
+    LOG.d("directory_name %s", directory_name)
 
-        directory = Directory.get_by(name=directory_name)
-        if not directory:
-            return None
+    directory = Directory.get_by(name=directory_name)
+    if not directory:
+        return None
 
-        user: User = directory.user
+    user: User = directory.user
 
-        if not user.can_create_new_alias():
-            send_cannot_create_directory_alias(user, address, directory_name)
-            return None
+    if not user.can_create_new_alias():
+        send_cannot_create_directory_alias(user, address, directory_name)
+        return None
 
-        if directory.disabled:
-            send_cannot_create_directory_alias_disabled(user, address, directory_name)
-            return None
+    if directory.disabled:
+        send_cannot_create_directory_alias_disabled(user, address, directory_name)
+        return None
 
-        try:
-            LOG.d("create alias %s for directory %s", address, directory)
+    try:
+        LOG.d("create alias %s for directory %s", address, directory)
 
-            mailboxes = directory.mailboxes
+        mailboxes = directory.mailboxes
 
-            alias = Alias.create(
-                email=address,
-                user_id=directory.user_id,
-                directory_id=directory.id,
-                mailbox_id=mailboxes[0].id,
-                note=f"Created by directory {directory.name}",
+        alias = Alias.create(
+            email=address,
+            user_id=directory.user_id,
+            directory_id=directory.id,
+            mailbox_id=mailboxes[0].id,
+            note=f"Created by directory {directory.name}",
+        )
+        db.session.flush()
+        for i in range(1, len(mailboxes)):
+            AliasMailbox.create(
+                alias_id=alias.id,
+                mailbox_id=mailboxes[i].id,
             )
-            db.session.flush()
-            for i in range(1, len(mailboxes)):
-                AliasMailbox.create(
-                    alias_id=alias.id,
-                    mailbox_id=mailboxes[i].id,
-                )
 
-            db.session.commit()
-            return alias
-        except AliasInTrashError:
-            LOG.w(
-                "Alias %s was deleted before, cannot auto-create using directory %s, user %s",
-                address,
-                directory_name,
-                user,
-            )
-            return None
-        except IntegrityError:
-            LOG.w("Alias %s already exists", address)
-            db.session.rollback()
-            alias = Alias.get_by(email=address)
-            return alias
+        db.session.commit()
+        return alias
+    except AliasInTrashError:
+        LOG.w(
+            "Alias %s was deleted before, cannot auto-create using directory %s, user %s",
+            address,
+            directory_name,
+            user,
+        )
+        return None
+    except IntegrityError:
+        LOG.w("Alias %s already exists", address)
+        db.session.rollback()
+        alias = Alias.get_by(email=address)
+        return alias
 
 
 def try_auto_create_via_domain(address: str) -> Optional[Alias]:
@@ -218,11 +217,10 @@ def delete_alias(alias: Alias, user: User):
                 )
             )
             db.session.commit()
-    else:
-        if not DeletedAlias.get_by(email=alias.email):
-            LOG.d("add %s to global trash", alias)
-            db.session.add(DeletedAlias(email=alias.email))
-            db.session.commit()
+    elif not DeletedAlias.get_by(email=alias.email):
+        LOG.d("add %s to global trash", alias)
+        db.session.add(DeletedAlias(email=alias.email))
+        db.session.commit()
 
     Alias.query.filter(Alias.id == alias.id).delete()
     db.session.commit()

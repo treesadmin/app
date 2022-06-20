@@ -33,9 +33,8 @@ def email_validator():
         email = email.strip()
         email_part = email
 
-        if "<" in email and ">" in email:
-            if email.find("<") + 1 < email.find(">"):
-                email_part = email[email.find("<") + 1 : email.find(">")].strip()
+        if "<" in email and ">" in email and email.find("<") + 1 < email.find(">"):
+            email_part = email[email.find("<") + 1 : email.find(">")].strip()
 
         if not is_valid_email(email_part):
             raise ValidationError(message)
@@ -158,10 +157,7 @@ def alias_contact_manager(alias_id):
 
     alias = Alias.get(alias_id)
 
-    page = 0
-    if request.args.get("page"):
-        page = int(request.args.get("page"))
-
+    page = int(request.args.get("page")) if request.args.get("page") else 0
     query = request.args.get("query") or ""
 
     # sanity check

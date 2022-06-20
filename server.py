@@ -504,10 +504,10 @@ def setup_openid_metadata(app):
     def openid_config():
         res = {
             "issuer": URL,
-            "authorization_endpoint": URL + "/oauth2/authorize",
-            "token_endpoint": URL + "/oauth2/token",
-            "userinfo_endpoint": URL + "/oauth2/userinfo",
-            "jwks_uri": URL + "/jwks",
+            "authorization_endpoint": f"{URL}/oauth2/authorize",
+            "token_endpoint": f"{URL}/oauth2/token",
+            "userinfo_endpoint": f"{URL}/oauth2/userinfo",
+            "jwks_uri": f"{URL}/jwks",
             "response_types_supported": [
                 "code",
                 "token",
@@ -517,10 +517,8 @@ def setup_openid_metadata(app):
             ],
             "subject_types_supported": ["public"],
             "id_token_signing_alg_values_supported": ["RS256"],
-            # todo: add introspection and revocation endpoints
-            # "introspection_endpoint": URL + "/oauth2/token/introspection",
-            # "revocation_endpoint": URL + "/oauth2/token/revocation",
         }
+
 
         return jsonify(res)
 
@@ -550,9 +548,8 @@ def setup_error_page(app):
     def unauthorized(e):
         if request.path.startswith("/api/"):
             return jsonify(error="Unauthorized"), 401
-        else:
-            flash("You need to login to see this page", "error")
-            return redirect(url_for("auth.login", next=request.full_path))
+        flash("You need to login to see this page", "error")
+        return redirect(url_for("auth.login", next=request.full_path))
 
     @app.errorhandler(403)
     def forbidden(e):
@@ -716,67 +713,66 @@ def setup_paddle_callback(app: Flask):
             subscription_id = request.form.get("subscription_id")
 
             sub: Subscription = Subscription.get_by(subscription_id=subscription_id)
-            if sub:
-                # cancellation_effective_date should be the same as next_bill_date
-                LOG.w(
-                    "Cancel subscription %s %s on %s, next bill date %s",
-                    subscription_id,
-                    sub.user,
-                    request.form.get("cancellation_effective_date"),
-                    sub.next_bill_date,
-                )
-                sub.event_time = arrow.now()
-
-                sub.cancelled = True
-                db.session.commit()
-
-                user = sub.user
-
-                send_email(
-                    user.email,
-                    "SimpleLogin - what can we do to improve the product?",
-                    render(
-                        "transactional/subscription-cancel.txt",
-                        end_date=request.form.get("cancellation_effective_date"),
-                    ),
-                )
-
-            else:
+            if not sub:
                 return "No such subscription", 400
+            # cancellation_effective_date should be the same as next_bill_date
+            LOG.w(
+                "Cancel subscription %s %s on %s, next bill date %s",
+                subscription_id,
+                sub.user,
+                request.form.get("cancellation_effective_date"),
+                sub.next_bill_date,
+            )
+            sub.event_time = arrow.now()
+
+            sub.cancelled = True
+            db.session.commit()
+
+            user = sub.user
+
+            send_email(
+                user.email,
+                "SimpleLogin - what can we do to improve the product?",
+                render(
+                    "transactional/subscription-cancel.txt",
+                    end_date=request.form.get("cancellation_effective_date"),
+                ),
+            )
+
         elif request.form.get("alert_name") == "subscription_updated":
             subscription_id = request.form.get("subscription_id")
 
             sub: Subscription = Subscription.get_by(subscription_id=subscription_id)
-            if sub:
-                LOG.d(
-                    "Update subscription %s %s on %s, next bill date %s",
-                    subscription_id,
-                    sub.user,
-                    request.form.get("cancellation_effective_date"),
-                    sub.next_bill_date,
-                )
+            if not sub:
+                return "No such subscription", 400
+            LOG.d(
+                "Update subscription %s %s on %s, next bill date %s",
+                subscription_id,
+                sub.user,
+                request.form.get("cancellation_effective_date"),
+                sub.next_bill_date,
+            )
+            plan = (
+                PlanEnum.monthly
                 if (
                     int(request.form.get("subscription_plan_id"))
                     == PADDLE_MONTHLY_PRODUCT_ID
-                ):
-                    plan = PlanEnum.monthly
-                else:
-                    plan = PlanEnum.yearly
+                )
+                else PlanEnum.yearly
+            )
 
-                sub.cancel_url = request.form.get("cancel_url")
-                sub.update_url = request.form.get("update_url")
-                sub.event_time = arrow.now()
-                sub.next_bill_date = arrow.get(
-                    request.form.get("next_bill_date"), "YYYY-MM-DD"
-                ).date()
-                sub.plan = plan
+            sub.cancel_url = request.form.get("cancel_url")
+            sub.update_url = request.form.get("update_url")
+            sub.event_time = arrow.now()
+            sub.next_bill_date = arrow.get(
+                request.form.get("next_bill_date"), "YYYY-MM-DD"
+            ).date()
+            sub.plan = plan
 
-                # make sure to set the new plan as not-cancelled
-                sub.cancelled = False
+            # make sure to set the new plan as not-cancelled
+            sub.cancelled = False
 
-                db.session.commit()
-            else:
-                return "No such subscription", 400
+            db.session.commit()
         return "OK"
 
 
@@ -800,11 +796,7 @@ def setup_coinbase_commerce(app):
         LOG.d("Coinbase event %s", event)
 
         if event["type"] == "charge:confirmed":
-            if handle_coinbase_event(event):
-                return "success", 200
-            else:
-                return "error", 400
-
+            return ("success", 200) if handle_coinbase_event(event) else ("error", 400)
         return "success", 200
 
 

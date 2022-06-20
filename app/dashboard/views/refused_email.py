@@ -26,14 +26,14 @@ def refused_email_route():
         .all()
     )
 
-    # make sure the highlighted email_log is the first email_log
-    highlight_index = None
-    for ix, email_log in enumerate(email_logs):
-        if email_log.id == highlight_id:
-            highlight_index = ix
-            break
-
-    if highlight_index:
+    if highlight_index := next(
+        (
+            ix
+            for ix, email_log in enumerate(email_logs)
+            if email_log.id == highlight_id
+        ),
+        None,
+    ):
         email_logs.insert(0, email_logs.pop(highlight_index))
 
     return render_template("dashboard/refused_email.html", **locals())

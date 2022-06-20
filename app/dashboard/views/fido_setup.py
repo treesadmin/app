@@ -77,10 +77,11 @@ def fido_setup():
         )
 
         flash("Security key has been activated", "success")
-        if not RecoveryCode.query.filter_by(user_id=current_user.id).all():
-            return redirect(url_for("dashboard.recovery_code_route"))
-        else:
-            return redirect(url_for("dashboard.fido_manage"))
+        return (
+            redirect(url_for("dashboard.fido_manage"))
+            if RecoveryCode.query.filter_by(user_id=current_user.id).all()
+            else redirect(url_for("dashboard.recovery_code_route"))
+        )
 
     # Prepare information for key registration process
     fido_uuid = (
@@ -94,11 +95,12 @@ def fido_setup():
         RP_ID,
         fido_uuid,
         current_user.email,
-        current_user.name if current_user.name else current_user.email,
+        current_user.name or current_user.email,
         False,
         attestation="none",
         user_verification="discouraged",
     )
+
 
     # Don't think this one should be used, but it's not configurable by arguments
     # https://www.w3.org/TR/webauthn/#sctn-location-extension

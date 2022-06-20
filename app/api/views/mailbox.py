@@ -42,7 +42,7 @@ def create_mailbox():
     mailbox_email = sanitize_email(request.get_json().get("email"))
 
     if not user.is_premium():
-        return jsonify(error=f"Only premium plan can add additional mailbox"), 400
+        return jsonify(error="Only premium plan can add additional mailbox"), 400
 
     if not is_valid_email(mailbox_email):
         return jsonify(error=f"{mailbox_email} invalid"), 400
@@ -117,8 +117,7 @@ def update_mailbox(mailbox_id):
     data = request.get_json() or {}
     changed = False
     if "default" in data:
-        is_default = data.get("default")
-        if is_default:
+        if is_default := data.get("default"):
             if not mailbox.verified:
                 return (
                     jsonify(
@@ -152,8 +151,7 @@ def update_mailbox(mailbox_id):
             changed = True
 
     if "cancel_email_change" in data:
-        cancel_email_change = data.get("cancel_email_change")
-        if cancel_email_change:
+        if cancel_email_change := data.get("cancel_email_change"):
             mailbox.new_email = None
             changed = True
 
@@ -188,10 +186,7 @@ def get_mailboxes_v2():
         - mailboxes: list of mailbox dict
     """
     user = g.user
-    mailboxes = []
-
-    for mailbox in Mailbox.query.filter_by(user_id=user.id):
-        mailboxes.append(mailbox)
+    mailboxes = list(Mailbox.query.filter_by(user_id=user.id))
 
     return (
         jsonify(mailboxes=[mailbox_to_dict(mb) for mb in mailboxes]),

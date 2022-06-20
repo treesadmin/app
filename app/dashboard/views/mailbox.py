@@ -154,8 +154,9 @@ def send_verification_email(user, mailbox):
     s = Signer(MAILBOX_SECRET)
     mailbox_id_signed = s.sign(str(mailbox.id)).decode()
     verification_url = (
-        URL + "/dashboard/mailbox_verify" + f"?mailbox_id={mailbox_id_signed}"
+        f"{URL}/dashboard/mailbox_verify" + f"?mailbox_id={mailbox_id_signed}"
     )
+
     send_email(
         mailbox.email,
         f"Please confirm your email {mailbox.email}",

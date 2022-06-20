@@ -18,7 +18,7 @@ from app.models import (
 
 def test_generate_email(flask_client):
     email = generate_email()
-    assert email.endswith("@" + EMAIL_DOMAIN)
+    assert email.endswith(f"@{EMAIL_DOMAIN}")
 
     with pytest.raises(ValueError):
         UUID(email.split("@")[0], version=4)
@@ -51,7 +51,7 @@ def test_suggested_emails_for_user_who_cannot_create_new_alias(flask_client):
     )
 
     # make sure user runs out of quota to create new email
-    for i in range(MAX_NB_EMAIL_FREE_PLAN):
+    for _ in range(MAX_NB_EMAIL_FREE_PLAN):
         Alias.create_new(user=user, prefix="test")
     db.session.commit()
 

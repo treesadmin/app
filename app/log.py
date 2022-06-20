@@ -27,7 +27,7 @@ class EmailHandlerFilter(logging.Filter):
 
     def filter(self, record):
         message_id = self.get_message_id()
-        record.message_id = message_id if message_id else ""
+        record.message_id = message_id or ""
         return True
 
     def get_message_id(self):

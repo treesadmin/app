@@ -115,7 +115,6 @@ def serialize_contact(contact: Contact, existed=False) -> dict:
 
 
 def get_alias_infos_with_pagination(user, page_id=0, query=None) -> [AliasInfo]:
-    ret = []
     q = (
         db.session.query(Alias)
         .options(joinedload(Alias.mailbox))
@@ -130,10 +129,7 @@ def get_alias_infos_with_pagination(user, page_id=0, query=None) -> [AliasInfo]:
 
     q = q.limit(PAGE_LIMIT).offset(page_id * PAGE_LIMIT)
 
-    for alias in q:
-        ret.append(get_alias_info(alias))
-
-    return ret
+    return [get_alias_info(alias) for alias in q]
 
 
 def get_alias_infos_with_pagination_v3(
@@ -200,23 +196,20 @@ def get_alias_infos_with_pagination_v3(
 
     q = list(q.limit(PAGE_LIMIT).offset(page_id * PAGE_LIMIT))
 
-    ret = []
-    for alias, contact, email_log, custom_domain, nb_reply, nb_blocked, nb_forward in q:
-        ret.append(
-            AliasInfo(
-                alias=alias,
-                mailbox=alias.mailbox,
-                mailboxes=alias.mailboxes,
-                nb_forward=nb_forward,
-                nb_blocked=nb_blocked,
-                nb_reply=nb_reply,
-                latest_email_log=email_log,
-                latest_contact=contact,
-                custom_domain=custom_domain,
-            )
+    return [
+        AliasInfo(
+            alias=alias,
+            mailbox=alias.mailbox,
+            mailboxes=alias.mailboxes,
+            nb_forward=nb_forward,
+            nb_blocked=nb_blocked,
+            nb_reply=nb_reply,
+            latest_email_log=email_log,
+            latest_contact=contact,
+            custom_domain=custom_domain,
         )
-
-    return ret
+        for alias, contact, email_log, custom_domain, nb_reply, nb_blocked, nb_forward in q
+    ]
 
 
 def get_alias_info(alias: Alias) -> AliasInfo:
@@ -303,11 +296,7 @@ def get_alias_contacts(alias, page_id: int) -> [dict]:
         .offset(page_id * PAGE_LIMIT)
     )
 
-    res = []
-    for fe in q.all():
-        res.append(serialize_contact(fe))
-
-    return res
+    return [serialize_contact(fe) for fe in q.all()]
 
 
 def get_alias_info_v3(user: User, alias_id: int) -> AliasInfo:

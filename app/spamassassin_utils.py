@@ -18,7 +18,7 @@ class SpamAssassin(object):
         self.score = None
         self.symbols = None
         self.spamd_user = spamd_user
-        self.report_json = dict()
+        self.report_json = {}
         self.report_fulltext = ""
         self.score = -999
 
@@ -87,26 +87,25 @@ class SpamAssassin(object):
             s.strip() for s in body.decode("utf-8", errors="ignore").strip().split("\n")
         ]
         linebreak_num = report_list.index([s for s in report_list if "---" in s][0])
-        tablelists = [s for s in report_list[linebreak_num + 1 :]]
+        tablelists = list(report_list[linebreak_num + 1 :])
 
         self.report_fulltext = "\n".join(report_list)
 
         # join line when current one is only wrap of previous
         tablelists_temp = []
         if tablelists:
-            for counter, tablelist in enumerate(tablelists):
+            for tablelist in tablelists:
                 if len(tablelist) > 1:
                     if (tablelist[0].isnumeric() or tablelist[0] == "-") and (
                         tablelist[1].isnumeric() or tablelist[1] == "."
                     ):
                         tablelists_temp.append(tablelist)
-                    else:
-                        if tablelists_temp:
-                            tablelists_temp[-1] += " " + tablelist
+                    elif tablelists_temp:
+                        tablelists_temp[-1] += f" {tablelist}"
         tablelists = tablelists_temp
 
         # create final json
-        self.report_json = dict()
+        self.report_json = {}
         for tablelist in tablelists:
             wordlist = re.split(r"\s+", tablelist)
             try:

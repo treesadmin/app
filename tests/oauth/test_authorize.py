@@ -167,9 +167,10 @@ def test_authorize_code_flow_no_openid_scope(flask_client):
 
     r = flask_client.post(
         url_for("oauth.token"),
-        headers={"Authorization": "Basic " + basic_auth_headers},
+        headers={"Authorization": f"Basic {basic_auth_headers}"},
         data={"grant_type": "authorization_code", "code": queries["code"][0]},
     )
+
 
     # r.json should have this format
     # {
@@ -257,9 +258,10 @@ def test_authorize_code_flow_with_openid_scope(flask_client):
 
     r = flask_client.post(
         url_for("oauth.token"),
-        headers={"Authorization": "Basic " + basic_auth_headers},
+        headers={"Authorization": f"Basic {basic_auth_headers}"},
         data={"grant_type": "authorization_code", "code": queries["code"][0]},
     )
+
 
     # r.json should have this format
     # {
@@ -579,9 +581,10 @@ def test_authorize_code_id_token_flow(flask_client):
 
     r = flask_client.post(
         url_for("oauth.token"),
-        headers={"Authorization": "Basic " + basic_auth_headers},
+        headers={"Authorization": f"Basic {basic_auth_headers}"},
         data={"grant_type": "authorization_code", "code": queries["code"][0]},
     )
+
 
     # r.json should have this format
     # {

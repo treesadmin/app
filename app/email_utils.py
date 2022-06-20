@@ -101,7 +101,7 @@ def send_welcome_email(user):
 
     send_email(
         to_email,
-        f"Welcome to SimpleLogin",
+        "Welcome to SimpleLogin",
         render("com/welcome.txt", user=user, alias=alias),
         render("com/welcome.html", user=user, alias=alias),
         unsubscribe_link,
@@ -112,7 +112,7 @@ def send_welcome_email(user):
 def send_trial_end_soon_email(user):
     send_email(
         user.email,
-        f"Your trial will end soon",
+        "Your trial will end soon",
         render("transactional/trial-end.txt", user=user),
         render("transactional/trial-end.html", user=user),
     )
@@ -121,7 +121,7 @@ def send_trial_end_soon_email(user):
 def send_activation_email(email, activation_link):
     send_email(
         email,
-        f"Just one more step to join SimpleLogin",
+        "Just one more step to join SimpleLogin",
         render(
             "transactional/activation.txt",
             activation_link=activation_link,
@@ -431,7 +431,7 @@ def add_dkim_signature(msg: Message, email_domain: str):
 
     # To investigate why some emails can't be DKIM signed. todo: remove
     if TEMP_DIR:
-        file_name = str(uuid.uuid4()) + ".eml"
+        file_name = f"{str(uuid.uuid4())}.eml"
         with open(os.path.join(TEMP_DIR, file_name), "wb") as f:
             f.write(msg.as_bytes())
 
@@ -483,13 +483,11 @@ def sanitize_header(msg: Message, header: str):
     """remove trailing space and remove linebreak from a header"""
     for i in reversed(range(len(msg._headers))):
         header_name = msg._headers[i][0].lower()
-        if header_name == header.lower():
-            # msg._headers[i] is a tuple like ('From', 'hey@google.com')
-            if msg._headers[i][1]:
-                msg._headers[i] = (
-                    msg._headers[i][0],
-                    msg._headers[i][1].strip().replace("\n", " "),
-                )
+        if header_name == header.lower() and msg._headers[i][1]:
+            msg._headers[i] = (
+                msg._headers[i][0],
+                msg._headers[i][1].strip().replace("\n", " "),
+            )
 
 
 def delete_all_headers_except(msg: Message, headers: [str]):
@@ -503,12 +501,7 @@ def delete_all_headers_except(msg: Message, headers: [str]):
 
 def can_create_directory_for_address(email_address: str) -> bool:
     """return True if an email ends with one of the alias domains provided by SimpleLogin"""
-    # not allow creating directory with premium domain
-    for domain in ALIAS_DOMAINS:
-        if email_address.endswith("@" + domain):
-            return True
-
-    return False
+    return any(email_address.endswith(f"@{domain}") for domain in ALIAS_DOMAINS)
 
 
 def is_valid_alias_address_domain(email_address) -> bool:
@@ -573,7 +566,7 @@ def is_disposable_domain(domain):
         if domain == d:
             return True
         # subdomain
-        if domain.endswith("." + d):
+        if domain.endswith(f".{d}"):
             return True
 
     return False
@@ -590,10 +583,7 @@ def get_mx_domain_list(domain) -> [str]:
 
 def personal_email_already_used(email_address: str) -> bool:
     """test if an email can be used as user email"""
-    if User.get_by(email=email_address):
-        return True
-
-    return False
+    return bool(User.get_by(email=email_address))
 
 
 def mailbox_already_used(email: str, user) -> bool:
@@ -610,10 +600,7 @@ def mailbox_already_used(email: str, user) -> bool:
 
 def get_orig_message_from_bounce(msg: Message) -> Message:
     """parse the original email from Bounce"""
-    i = 0
-    for part in msg.walk():
-        i += 1
-
+    for i, part in enumerate(msg.walk(), start=1):
         # the original message is the 4th part
         # 1st part is the root part,  multipart/report
         # 2nd is text/plain, Postfix log
@@ -624,10 +611,7 @@ def get_orig_message_from_bounce(msg: Message) -> Message:
 
 
 def get_orig_message_from_hotmail_complaint(msg: Message) -> Message:
-    i = 0
-    for part in msg.walk():
-        i += 1
-
+    for i, part in enumerate(msg.walk(), start=1):
         # 1st part is the container
         # 2nd part is the empty body
         # 3rd is original message
@@ -636,10 +620,7 @@ def get_orig_message_from_hotmail_complaint(msg: Message) -> Message:
 
 
 def get_orig_message_from_yahoo_complaint(msg: Message) -> Message:
-    i = 0
-    for part in msg.walk():
-        i += 1
-
+    for i, part in enumerate(msg.walk(), start=1):
         # 1st part is the container
         # 2nd part is the empty body
         # 6th is original message
@@ -653,8 +634,7 @@ def get_header_from_bounce(msg: Message, header: str) -> str:
     """
     msg_str = str(msg)
     exp = re.compile(f"{header}.*\n")
-    r = re.search(exp, msg_str)
-    if r:
+    if r := re.search(exp, msg_str):
         # substr should be something like 'HEADER: 1234'
         substr = msg_str[r.start() : r.end()].strip()
         parts = substr.split(":")
@@ -665,10 +645,7 @@ def get_header_from_bounce(msg: Message, header: str) -> str:
 
 def get_orig_message_from_spamassassin_report(msg: Message) -> Message:
     """parse the original email from Spamassassin report"""
-    i = 0
-    for part in msg.walk():
-        i += 1
-
+    for i, part in enumerate(msg.walk(), start=1):
         # the original message is the 4th part
         # 1st part is the root part,  multipart/report
         # 2nd is text/plain, SpamAssassin part
@@ -756,7 +733,7 @@ def copy(msg: Message) -> Message:
         LOG.w("deepcopy fails, try string parsing")
         try:
             return message_from_string(msg.as_string())
-        except (UnicodeEncodeError, KeyError, LookupError):
+        except (UnicodeEncodeError, LookupError):
             LOG.w("as_string() fails, try bytes parsing")
             return message_from_bytes(to_bytes(msg))
 
@@ -821,7 +798,7 @@ def get_encoding(msg: Message) -> EmailEncoding:
     - 7bit: default if unknown or empty
     """
     cte = str(msg.get("content-transfer-encoding", "")).lower()
-    if cte in ("", "7bit", "8bit", "binary"):
+    if cte in {"", "7bit", "8bit", "binary"}:
         return EmailEncoding.NO
 
     if cte == "base64":
@@ -831,7 +808,7 @@ def get_encoding(msg: Message) -> EmailEncoding:
         return EmailEncoding.QUOTED
 
     # some email services use unknown encoding
-    if cte in ("amazonses.com",):
+    if cte in {"amazonses.com"}:
         return EmailEncoding.NO
 
     LOG.e("Unknown encoding %s", cte)
@@ -894,9 +871,11 @@ def add_header(msg: Message, text_header, html_header) -> Message:
             clone_msg.set_payload(encode_text(new_payload, encoding))
             return clone_msg
     elif content_type in ("multipart/alternative", "multipart/related"):
-        new_parts = []
-        for part in msg.get_payload():
-            new_parts.append(add_header(part, text_header, html_header))
+        new_parts = [
+            add_header(part, text_header, html_header)
+            for part in msg.get_payload()
+        ]
+
         clone_msg = copy(msg)
         clone_msg.set_payload(new_parts)
         return clone_msg
@@ -952,9 +931,7 @@ def replace(msg: Message, old, new) -> Message:
         "multipart/mixed",
         "message/rfc822",
     ):
-        new_parts = []
-        for part in msg.get_payload():
-            new_parts.append(replace(part, old, new))
+        new_parts = [replace(part, old, new) for part in msg.get_payload()]
         clone_msg = copy(msg)
         clone_msg.set_payload(new_parts)
         return clone_msg
@@ -1057,7 +1034,6 @@ def should_disable(alias: Alias) -> bool:
         LOG.d("more than 12 bounces in the last 24h, disable alias %s", alias)
         return True
 
-    # if more than 5 bounces but has bounces last week -> disable alias
     elif nb_bounced_last_24h > 5:
         one_week_ago = arrow.now().shift(days=-8)
         nb_bounced_7d_1d = (
@@ -1120,7 +1096,7 @@ def should_disable(alias: Alias) -> bool:
         # if an account has more than 10 bounces every day for at least 4 days in the last 10 days, disable alias
         date_bounces: List[Tuple[arrow.Arrow, int]] = list(query)
         if len(date_bounces) > 4:
-            if all([v > 10 for _, v in date_bounces]):
+            if all(v > 10 for _, v in date_bounces):
                 LOG.d(
                     "+10 bounces for +4 days in the last 10 days on %s, disable alias %s",
                     alias.user,
@@ -1146,8 +1122,7 @@ def spf_pass(
     contact_email: str,
     msg: Message,
 ) -> bool:
-    ip = msg[_IP_HEADER]
-    if ip:
+    if ip := msg[_IP_HEADER]:
         LOG.d("Enforce SPF on %s %s", ip, envelope.mail_from)
         try:
             r = spf.check2(i=ip, s=envelope.mail_from, h=None)
@@ -1173,7 +1148,7 @@ def spf_pass(
                         "transactional/spf-fail.txt",
                         alias=alias.email,
                         ip=ip,
-                        mailbox_url=URL + f"/dashboard/mailbox/{mailbox.id}#spf",
+                        mailbox_url=f"{URL}/dashboard/mailbox/{mailbox.id}#spf",
                         to_email=contact_email,
                         subject=subject,
                         time=arrow.now(),
@@ -1181,12 +1156,13 @@ def spf_pass(
                     render(
                         "transactional/spf-fail.html",
                         ip=ip,
-                        mailbox_url=URL + f"/dashboard/mailbox/{mailbox.id}#spf",
+                        mailbox_url=f"{URL}/dashboard/mailbox/{mailbox.id}#spf",
                         to_email=contact_email,
                         subject=subject,
                         time=arrow.now(),
                     ),
                 )
+
                 return False
 
     else:
@@ -1223,11 +1199,10 @@ def sl_sendmail(
         if POSTFIX_SUBMISSION_TLS:
             smtp = SMTP(POSTFIX_SERVER, 587)
             smtp.starttls()
+        elif is_forward:
+            smtp = SMTP(POSTFIX_SERVER, POSTFIX_PORT_FORWARD)
         else:
-            if is_forward:
-                smtp = SMTP(POSTFIX_SERVER, POSTFIX_PORT_FORWARD)
-            else:
-                smtp = SMTP(POSTFIX_SERVER, POSTFIX_PORT)
+            smtp = SMTP(POSTFIX_SERVER, POSTFIX_PORT)
 
         # smtp.send_message has UnicodeEncodeError
         # encode message raw directly instead
@@ -1247,20 +1222,19 @@ def sl_sendmail(
             rcpt_options,
         )
     except SMTPServerDisconnected:
-        if can_retry:
-            LOG.w("SMTPServerDisconnected error, retry")
-            time.sleep(3)
-            sl_sendmail(
-                from_addr,
-                to_addr,
-                msg,
-                mail_options,
-                rcpt_options,
-                is_forward,
-                can_retry=False,
-            )
-        else:
+        if not can_retry:
             raise
+        LOG.w("SMTPServerDisconnected error, retry")
+        time.sleep(3)
+        sl_sendmail(
+            from_addr,
+            to_addr,
+            msg,
+            mail_options,
+            rcpt_options,
+            is_forward,
+            can_retry=False,
+        )
 
 
 def get_queue_id(msg: Message) -> Optional[str]:

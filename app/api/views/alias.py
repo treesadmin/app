@@ -51,11 +51,7 @@ def get_aliases():
     except (ValueError, TypeError):
         return jsonify(error="page_id must be provided in request query"), 400
 
-    query = None
-    data = request.get_json(silent=True)
-    if data:
-        query = data.get("query")
-
+    query = data.get("query") if (data := request.get_json(silent=True)) else None
     alias_infos: [AliasInfo] = get_alias_infos_with_pagination(
         user, page_id=page_id, query=query
     )
@@ -105,11 +101,7 @@ def get_aliases_v2():
     except (ValueError, TypeError):
         return jsonify(error="page_id must be provided in request query"), 400
 
-    query = None
-    data = request.get_json(silent=True)
-    if data:
-        query = data.get("query")
-
+    query = data.get("query") if (data := request.get_json(silent=True)) else None
     alias_infos: [AliasInfo] = get_alias_infos_with_pagination_v3(
         user, page_id=page_id, query=query
     )

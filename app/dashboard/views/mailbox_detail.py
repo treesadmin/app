@@ -36,11 +36,7 @@ def mailbox_detail_route(mailbox_id):
 
     change_email_form = ChangeEmailForm()
 
-    if mailbox.new_email:
-        pending_email = mailbox.new_email
-    else:
-        pending_email = None
-
+    pending_email = mailbox.new_email or None
     if request.method == "POST":
         if (
             request.form.get("form-name") == "update-email"
@@ -79,9 +75,7 @@ def mailbox_detail_route(mailbox_id):
                 flash("SPF enforcement globally not enabled", "error")
                 return redirect(url_for("dashboard.index"))
 
-            mailbox.force_spf = (
-                True if request.form.get("spf-status") == "on" else False
-            )
+            mailbox.force_spf = request.form.get("spf-status") == "on"
             db.session.commit()
             flash(
                 "SPF enforcement was " + "enabled"
@@ -238,14 +232,12 @@ def cancel_mailbox_change_route(mailbox_id):
         mailbox.new_email = None
         db.session.commit()
         flash("Your mailbox change is cancelled", "success")
-        return redirect(
-            url_for("dashboard.mailbox_detail_route", mailbox_id=mailbox_id)
-        )
     else:
         flash("You have no pending mailbox change", "warning")
-        return redirect(
-            url_for("dashboard.mailbox_detail_route", mailbox_id=mailbox_id)
-        )
+
+    return redirect(
+        url_for("dashboard.mailbox_detail_route", mailbox_id=mailbox_id)
+    )
 
 
 @dashboard_bp.route("/mailbox/confirm_change")

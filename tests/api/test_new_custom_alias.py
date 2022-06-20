@@ -192,7 +192,7 @@ def test_cannot_create_alias_in_trash(flask_client):
     )
 
     assert r.status_code == 201
-    assert r.json["alias"] == f"prefix@ab.cd"
+    assert r.json["alias"] == "prefix@ab.cd"
 
     # delete alias: it's going to be moved to ab.cd trash
     alias = Alias.get_by(email="prefix@ab.cd")
@@ -217,7 +217,9 @@ def test_too_many_requests(flask_client):
     # create a custom domain
     CustomDomain.create(user_id=user.id, domain="ab.cd", verified=True, commit=True)
 
-    # can't create more than 5 aliases in 1 minute
+    # to make flask-limiter work with unit test
+    # https://github.com/alisaifee/flask-limiter/issues/147#issuecomment-642683820
+    g._rate_limiting_complete = False
     for i in range(7):
         signed_suffix = signer.sign("@ab.cd").decode()
 
@@ -230,10 +232,6 @@ def test_too_many_requests(flask_client):
             },
         )
 
-        # to make flask-limiter work with unit test
-        # https://github.com/alisaifee/flask-limiter/issues/147#issuecomment-642683820
-        g._rate_limiting_complete = False
-    else:
-        # last request
-        assert r.status_code == 429
-        assert r.json == {"error": "Rate limit exceeded"}
+    # last request
+    assert r.status_code == 429
+    assert r.json == {"error": "Rate limit exceeded"}

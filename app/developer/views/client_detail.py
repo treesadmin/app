@@ -85,9 +85,10 @@ def client_detail(client_id):
         )
 
         flash(
-            f"Thanks for submitting, we are informed and will come back to you asap!",
+            "Thanks for submitting, we are informed and will come back to you asap!",
             "success",
         )
+
 
         return redirect(url_for("developer.client_detail", client_id=client.id))
 

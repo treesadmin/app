@@ -55,8 +55,7 @@ def flask_client():
         db.session = session
 
         try:
-            client = app.test_client()
-            yield client
+            yield app.test_client()
         finally:
             # roll back all commits made during a test
             transaction.rollback()

@@ -23,7 +23,7 @@ def batch_import_route():
     if request.method == "POST":
         alias_file = request.files["alias-file"]
 
-        file_path = random_string(20) + ".csv"
+        file_path = f"{random_string(20)}.csv"
         file = File.create(user_id=current_user.id, path=file_path)
         s3.upload_from_bytesio(file_path, alias_file)
         db.session.flush()

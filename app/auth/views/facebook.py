@@ -22,7 +22,7 @@ _scope = ["email"]
 
 # need to set explicitly redirect_uri instead of leaving the lib to pre-fill redirect_uri
 # when served behind nginx, the redirect_uri is localhost... and not the real url
-_redirect_uri = URL + "/auth/facebook/callback"
+_redirect_uri = f"{URL}/auth/facebook/callback"
 
 
 @auth_bp.route("/facebook/login")
@@ -30,11 +30,7 @@ def facebook_login():
     # to avoid flask-login displaying the login error message
     session.pop("_flashes", None)
 
-    next_url = request.args.get("next")
-
-    # Facebook does not allow to append param to redirect_uri
-    # we need to pass the next url by session
-    if next_url:
+    if next_url := request.args.get("next"):
         session["facebook_next_url"] = next_url
 
     facebook = OAuth2Session(
