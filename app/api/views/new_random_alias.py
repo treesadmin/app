@@ -35,14 +35,9 @@ def new_random_alias():
             400,
         )
 
-    note = None
-    data = request.get_json(silent=True)
-    if data:
-        note = data.get("note")
-
+    note = data.get("note") if (data := request.get_json(silent=True)) else None
     scheme = user.alias_generator
-    mode = request.args.get("mode")
-    if mode:
+    if mode := request.args.get("mode"):
         if mode == "word":
             scheme = AliasGeneratorEnum.word.value
         elif mode == "uuid":
@@ -53,8 +48,7 @@ def new_random_alias():
     alias = Alias.create_new_random(user=user, scheme=scheme, note=note)
     db.session.commit()
 
-    hostname = request.args.get("hostname")
-    if hostname:
+    if hostname := request.args.get("hostname"):
         AliasUsedOn.create(alias_id=alias.id, hostname=hostname, user_id=alias.user_id)
         db.session.commit()
 

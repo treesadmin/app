@@ -82,9 +82,10 @@ def coupon_route():
                     commit=True,
                 )
                 flash(
-                    f"Your account has been upgraded to Premium, thanks for your support!",
+                    "Your account has been upgraded to Premium, thanks for your support!",
                     "success",
                 )
+
 
             # notify admin
             if coupon.is_giveaway:

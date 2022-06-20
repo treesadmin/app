@@ -14,14 +14,13 @@ _token_url = "https://github.com/login/oauth/access_token"
 
 # need to set explicitly redirect_uri instead of leaving the lib to pre-fill redirect_uri
 # when served behind nginx, the redirect_uri is localhost... and not the real url
-_redirect_uri = URL + "/auth/github/callback"
+_redirect_uri = f"{URL}/auth/github/callback"
 
 
 @auth_bp.route("/github/login")
 def github_login():
-    next_url = request.args.get("next")
-    if next_url:
-        redirect_uri = _redirect_uri + "?next=" + encode_url(next_url)
+    if next_url := request.args.get("next"):
+        redirect_uri = f"{_redirect_uri}?next={encode_url(next_url)}"
     else:
         redirect_uri = _redirect_uri
 
@@ -66,13 +65,14 @@ def github_callback():
     # }
     emails = github.get("https://api.github.com/user/emails").json()
 
-    # only take the primary email
-    email = None
-
-    for e in emails:
-        if e.get("verified") and e.get("primary"):
-            email = e.get("email")
-            break
+    email = next(
+        (
+            e.get("email")
+            for e in emails
+            if e.get("verified") and e.get("primary")
+        ),
+        None,
+    )
 
     if not email:
         LOG.e(f"cannot get email for github user {github_user_data} {emails}")

@@ -52,7 +52,7 @@ def mfa():
         browser = MfaBrowser.get_by(token=request.cookies.get("mfa"))
         if browser and not browser.is_expired() and browser.user_id == user.id:
             login_user(user)
-            flash(f"Welcome back!", "success")
+            flash("Welcome back!", "success")
             # Redirect user to correct page
             return redirect(next_url or url_for("dashboard.index"))
         else:
@@ -70,7 +70,7 @@ def mfa():
             db.session.commit()
 
             login_user(user)
-            flash(f"Welcome back!", "success")
+            flash("Welcome back!", "success")
 
             # Redirect user to correct page
             response = make_response(redirect(next_url or url_for("dashboard.index")))
@@ -82,10 +82,11 @@ def mfa():
                     "mfa",
                     value=browser.token,
                     expires=browser.expires.datetime,
-                    secure=True if URL.startswith("https") else False,
+                    secure=bool(URL.startswith("https")),
                     httponly=True,
                     samesite="Lax",
                 )
+
 
             return response
 

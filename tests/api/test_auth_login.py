@@ -162,7 +162,7 @@ def test_auth_activate_wrong_code(flask_client):
     assert act_code.tries == 3
 
     # make sure to create a wrong code
-    wrong_code = act_code.code + "123"
+    wrong_code = f"{act_code.code}123"
 
     r = flask_client.post(
         url_for("api.auth_activate"),
@@ -191,7 +191,7 @@ def test_auth_activate_too_many_wrong_code(flask_client):
     assert act_code.tries == 3
 
     # make sure to create a wrong code
-    wrong_code = act_code.code + "123"
+    wrong_code = f"{act_code.code}123"
 
     for _ in range(2):
         r = flask_client.post(

@@ -14,15 +14,7 @@ def require_api_auth(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         api_code = request.headers.get("Authentication")
-        api_key = ApiKey.get_by(code=api_code)
-
-        if not api_key:
-            # if user is authenticated, the request is authorized
-            if current_user.is_authenticated:
-                g.user = current_user
-            else:
-                return jsonify(error="Wrong api key"), 401
-        else:
+        if api_key := ApiKey.get_by(code=api_code):
             # Update api key stats
             api_key.last_used = arrow.now()
             api_key.times += 1
@@ -30,6 +22,10 @@ def require_api_auth(f):
 
             g.user = api_key.user
 
+        elif current_user.is_authenticated:
+            g.user = current_user
+        else:
+            return jsonify(error="Wrong api key"), 401
         return f(*args, **kwargs)
 
     return decorated

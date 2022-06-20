@@ -52,8 +52,7 @@ def options_v4():
             .order_by(desc(AliasUsedOn.created_at))
         )
 
-        r = q.first()
-        if r:
+        if r := q.first():
             _, alias, _ = r
             LOG.d("found alias %s %s %s", alias, hostname, user)
             ret["recommendation"] = {"alias": alias.email, "hostname": hostname}
@@ -72,7 +71,10 @@ def options_v4():
     suffixes = get_available_suffixes(user)
 
     # custom domain should be put first
-    ret["suffixes"] = list([suffix.suffix, suffix.signed_suffix] for suffix in suffixes)
+    ret["suffixes"] = [
+        [suffix.suffix, suffix.signed_suffix] for suffix in suffixes
+    ]
+
 
     return jsonify(ret)
 
@@ -123,8 +125,7 @@ def options_v5():
             .order_by(desc(AliasUsedOn.created_at))
         )
 
-        r = q.first()
-        if r:
+        if r := q.first():
             _, alias, _ = r
             LOG.d("found alias %s %s %s", alias, hostname, user)
             ret["recommendation"] = {"alias": alias.email, "hostname": hostname}

@@ -59,7 +59,7 @@ def fido():
         browser = MfaBrowser.get_by(token=request.cookies.get("mfa"))
         if browser and not browser.is_expired() and browser.user_id == user.id:
             login_user(user)
-            flash(f"Welcome back!", "success")
+            flash("Welcome back!", "success")
             # Redirect user to correct page
             return redirect(next_url or url_for("dashboard.index"))
         else:
@@ -83,13 +83,14 @@ def fido():
             webauthn_user = webauthn.WebAuthnUser(
                 user.fido_uuid,
                 user.email,
-                user.name if user.name else user.email,
+                user.name or user.email,
                 False,
                 fido_key.credential_id,
                 fido_key.public_key,
                 fido_key.sign_count,
                 RP_ID,
             )
+
             webauthn_assertion_response = webauthn.WebAuthnAssertionResponse(
                 webauthn_user, sk_assertion, challenge, URL, uv_required=False
             )
@@ -106,7 +107,7 @@ def fido():
             del session[MFA_USER_ID]
 
             login_user(user)
-            flash(f"Welcome back!", "success")
+            flash("Welcome back!", "success")
 
             # Redirect user to correct page
             response = make_response(redirect(next_url or url_for("dashboard.index")))
@@ -118,10 +119,11 @@ def fido():
                     "mfa",
                     value=browser.token,
                     expires=browser.expires.datetime,
-                    secure=True if URL.startswith("https") else False,
+                    secure=bool(URL.startswith("https")),
                     httponly=True,
                     samesite="Lax",
                 )
+
 
             return response
 
@@ -132,20 +134,19 @@ def fido():
     session["fido_challenge"] = challenge.rstrip("=")
 
     fidos = Fido.filter_by(uuid=user.fido_uuid).all()
-    webauthn_users = []
-    for fido in fidos:
-        webauthn_users.append(
-            webauthn.WebAuthnUser(
-                user.fido_uuid,
-                user.email,
-                user.name if user.name else user.email,
-                False,
-                fido.credential_id,
-                fido.public_key,
-                fido.sign_count,
-                RP_ID,
-            )
+    webauthn_users = [
+        webauthn.WebAuthnUser(
+            user.fido_uuid,
+            user.email,
+            user.name or user.email,
+            False,
+            fido.credential_id,
+            fido.public_key,
+            fido.sign_count,
+            RP_ID,
         )
+        for fido in fidos
+    ]
 
     webauthn_assertion_options = webauthn.WebAuthnAssertionOptions(
         webauthn_users, challenge

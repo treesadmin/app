@@ -205,8 +205,7 @@ def new_custom_alias_v3():
     custom_domain_id = None
     if alias_suffix.startswith("@"):
         alias_domain = alias_suffix[1:]
-        domain = CustomDomain.get_by(domain=alias_domain)
-        if domain:
+        if domain := CustomDomain.get_by(domain=alias_domain):
             custom_domain_id = domain.id
 
     alias = Alias.create(

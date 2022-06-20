@@ -78,7 +78,7 @@ def import_from_csv(batch_import: BatchImport, user: User, lines):
 
                 mailboxes.append(mailbox.id)
 
-        if len(mailboxes) == 0:
+        if not mailboxes:
             mailboxes = [user.default_mailbox_id]
 
         if user.can_create_new_alias():

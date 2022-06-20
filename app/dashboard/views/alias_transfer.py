@@ -91,8 +91,10 @@ def alias_transfer_send_route(alias_id):
 
     if alias.transfer_token:
         alias_transfer_url = (
-            URL + "/dashboard/alias_transfer/receive" + f"?token={alias.transfer_token}"
+            f"{URL}/dashboard/alias_transfer/receive"
+            + f"?token={alias.transfer_token}"
         )
+
     else:
         alias_transfer_url = None
 
@@ -107,15 +109,12 @@ def alias_transfer_send_route(alias_id):
                 + f"?token={alias.transfer_token}"
             )
             flash("Share URL created", "success")
-            return redirect(request.url)
-        # request.form.get("form-name") == "remove"
         else:
             alias.transfer_token = None
             db.session.commit()
             alias_transfer_url = None
             flash("Share URL deleted", "success")
-            return redirect(request.url)
-
+        return redirect(request.url)
     return render_template(
         "dashboard/alias_transfer_send.html",
         alias=alias,

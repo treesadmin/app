@@ -189,15 +189,13 @@ def get_or_create_contact(from_header: str, mail_from: str, alias: Alias) -> Con
     except ValueError:
         contact_name, contact_email = "", ""
 
-    if not is_valid_email(contact_email):
-        # From header is wrongly formatted, try with mail_from
-        if mail_from and mail_from != "<>":
-            LOG.w(
-                "Cannot parse email from from_header %s, use mail_from %s",
-                from_header,
-                mail_from,
-            )
-            contact_email = mail_from
+    if not is_valid_email(contact_email) and mail_from and mail_from != "<>":
+        LOG.w(
+            "Cannot parse email from from_header %s, use mail_from %s",
+            from_header,
+            mail_from,
+        )
+        contact_email = mail_from
 
     if not is_valid_email(contact_email):
         LOG.w(
@@ -297,27 +295,26 @@ def get_or_create_reply_to_contact(
     contact = Contact.get_by(alias_id=alias.id, website_email=contact_address)
     if contact:
         return contact
-    else:
-        LOG.d(
-            "create contact %s for alias %s via reply-to header",
-            contact_address,
-            alias,
-            reply_to_header,
-        )
+    LOG.d(
+        "create contact %s for alias %s via reply-to header",
+        contact_address,
+        alias,
+        reply_to_header,
+    )
 
-        try:
-            contact = Contact.create(
-                user_id=alias.user_id,
-                alias_id=alias.id,
-                website_email=contact_address,
-                name=contact_name,
-                reply_email=generate_reply_email(contact_address, alias.user),
-            )
-            db.session.commit()
-        except IntegrityError:
-            LOG.w("Contact %s %s already exist", alias, contact_address)
-            db.session.rollback()
-            contact = Contact.get_by(alias_id=alias.id, website_email=contact_address)
+    try:
+        contact = Contact.create(
+            user_id=alias.user_id,
+            alias_id=alias.id,
+            website_email=contact_address,
+            name=contact_name,
+            reply_email=generate_reply_email(contact_address, alias.user),
+        )
+        db.session.commit()
+    except IntegrityError:
+        LOG.w("Contact %s %s already exist", alias, contact_address)
+        db.session.rollback()
+        contact = Contact.get_by(alias_id=alias.id, website_email=contact_address)
 
     return contact
 
@@ -412,16 +409,15 @@ def replace_header_when_reply(msg: Message, alias: Alias, header: str):
         if reply_email == alias.email:
             continue
 
-        contact = Contact.get_by(reply_email=reply_email)
-        if not contact:
+        if contact := Contact.get_by(reply_email=reply_email):
+            new_addrs.append(formataddr((contact.name, contact.website_email)))
+
+        else:
             LOG.w(
                 "%s email in reply phase %s must be reply emails", header, reply_email
             )
             # still keep this email in header
             new_addrs.append(reply_email)
-        else:
-            new_addrs.append(formataddr((contact.name, contact.website_email)))
-
     if new_addrs:
         new_header = ",".join(new_addrs)
         LOG.d("Replace %s header, old: %s, new: %s", header, msg[header], new_header)
@@ -562,12 +558,12 @@ def handle_forward(envelope, msg: Message, rcpt_to: str) -> List[Tuple[bool, str
             alias_address,
         )
         alias = try_auto_create(alias_address)
-        if not alias:
-            LOG.d("alias %s cannot be created on-the-fly, return 550", alias_address)
-            if should_ignore_bounce(envelope.mail_from):
-                return [(True, status.E207)]
-            else:
-                return [(False, status.E515)]
+    if not alias:
+        LOG.d("alias %s cannot be created on-the-fly, return 550", alias_address)
+        if should_ignore_bounce(envelope.mail_from):
+            return [(True, status.E207)]
+        else:
+            return [(False, status.E515)]
 
     user = alias.user
 

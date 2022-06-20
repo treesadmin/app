@@ -92,36 +92,7 @@ def authorize():
 
     # redirect from client website
     if request.method == "GET":
-        if current_user.is_authenticated:
-            suggested_email, other_emails, email_suffix = None, [], None
-            suggested_name, other_names = None, []
-
-            # user has already allowed this client
-            client_user: ClientUser = ClientUser.get_by(
-                client_id=client.id, user_id=current_user.id
-            )
-            user_info = {}
-            if client_user:
-                LOG.d("user %s has already allowed client %s", current_user, client)
-                user_info = client_user.get_user_info()
-            else:
-                suggested_email, other_emails = current_user.suggested_emails(
-                    client.name
-                )
-                suggested_name, other_names = current_user.suggested_names()
-
-                user_custom_domains = [
-                    cd.domain for cd in current_user.verified_custom_domains()
-                ]
-                suffixes = get_available_suffixes(current_user)
-
-            return render_template(
-                "oauth/authorize.html",
-                Scope=Scope,
-                EMAIL_DOMAIN=EMAIL_DOMAIN,
-                **locals(),
-            )
-        else:
+        if not current_user.is_authenticated:
             # after user logs in, redirect user back to this page
             return render_template(
                 "oauth/authorize_nonlogin_user.html",
@@ -129,6 +100,34 @@ def authorize():
                 next=request.url,
                 Scope=Scope,
             )
+        suggested_email, other_emails, email_suffix = None, [], None
+        suggested_name, other_names = None, []
+
+        # user has already allowed this client
+        client_user: ClientUser = ClientUser.get_by(
+            client_id=client.id, user_id=current_user.id
+        )
+        user_info = {}
+        if client_user:
+            LOG.d("user %s has already allowed client %s", current_user, client)
+            user_info = client_user.get_user_info()
+        else:
+            suggested_email, other_emails = current_user.suggested_emails(
+                client.name
+            )
+            suggested_name, other_names = current_user.suggested_names()
+
+            user_custom_domains = [
+                cd.domain for cd in current_user.verified_custom_domains()
+            ]
+            suffixes = get_available_suffixes(current_user)
+
+        return render_template(
+            "oauth/authorize.html",
+            Scope=Scope,
+            EMAIL_DOMAIN=EMAIL_DOMAIN,
+            **locals(),
+        )
     else:  # POST - user allows or denies
         if request.form.get("button") == "deny":
             LOG.d("User %s denies Client %s", current_user, client)
@@ -202,17 +201,16 @@ def authorize():
                         # get the custom_domain_id if alias is created with a custom domain
                         if alias_suffix.startswith("@"):
                             alias_domain = alias_suffix[1:]
-                            domain = CustomDomain.get_by(domain=alias_domain)
-                            if domain:
+                            if domain := CustomDomain.get_by(
+                                domain=alias_domain
+                            ):
                                 alias.custom_domain_id = domain.id
 
                         db.session.flush()
                         flash(f"Alias {full_alias} has been created", "success")
-                # only happen if the request has been "hacked"
                 else:
                     flash("something went wrong", "warning")
                     return redirect(request.url)
-            # User chooses one of the suggestions
             else:
                 chosen_email = request.form.get("suggested-email")
                 # todo: add some checks on chosen_email
@@ -305,9 +303,8 @@ def authorize():
 
         # if response_types contain "token" => implicit flow => should use fragment
         # except if client sets explicitly response_mode
-        if not response_mode:
-            if ResponseType.TOKEN in response_types:
-                fragment = True
+        if not response_mode and ResponseType.TOKEN in response_types:
+            fragment = True
 
         # construct redirect_uri with redirect_args
         return redirect(construct_url(redirect_uri, redirect_args, fragment))
@@ -319,10 +316,7 @@ def construct_url(url, args: Dict[str, str], fragment: bool = False):
         v = encode_url(v)
 
         if i == 0:
-            if fragment:
-                url += f"#{k}={v}"
-            else:
-                url += f"?{k}={v}"
+            url += f"#{k}={v}" if fragment else f"?{k}={v}"
         else:
             url += f"&{k}={v}"
 

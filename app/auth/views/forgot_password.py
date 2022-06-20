@@ -28,9 +28,7 @@ def forgot_password():
             "success",
         )
 
-        user = User.get_by(email=email)
-
-        if user:
+        if user := User.get_by(email=email):
             LOG.d("Send forgot password email to %s", user)
             send_reset_password_email(user)
             return redirect(url_for("auth.forgot_password"))

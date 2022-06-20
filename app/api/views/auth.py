@@ -195,8 +195,7 @@ def auth_reactivate():
     if not user or user.activated:
         return jsonify(error="Something went wrong"), 400
 
-    account_activation = AccountActivation.get_by(user_id=user.id)
-    if account_activation:
+    if account_activation := AccountActivation.get_by(user_id=user.id):
         AccountActivation.delete(account_activation.id)
         db.session.commit()
 
@@ -358,9 +357,7 @@ def forgot_password():
 
     email = sanitize_email(data.get("email"))
 
-    user = User.get_by(email=email)
-
-    if user:
+    if user := User.get_by(email=email):
         send_reset_password_email(user)
 
     return jsonify(ok=True)

@@ -300,7 +300,9 @@ def test_too_many_requests(flask_client):
     # create a custom domain
     CustomDomain.create(user_id=user.id, domain="ab.cd", verified=True, commit=True)
 
-    # can't create more than 5 aliases in 1 minute
+    # to make flask-limiter work with unit test
+    # https://github.com/alisaifee/flask-limiter/issues/147#issuecomment-642683820
+    g._rate_limiting_complete = False
     for i in range(7):
         signed_suffix = signer.sign("@ab.cd").decode()
 
@@ -314,10 +316,6 @@ def test_too_many_requests(flask_client):
             follow_redirects=True,
         )
 
-        # to make flask-limiter work with unit test
-        # https://github.com/alisaifee/flask-limiter/issues/147#issuecomment-642683820
-        g._rate_limiting_complete = False
-    else:
-        # last request
-        assert r.status_code == 429
-        assert "Whoa, slow down there, pardner!" in str(r.data)
+    # last request
+    assert r.status_code == 429
+    assert "Whoa, slow down there, pardner!" in str(r.data)

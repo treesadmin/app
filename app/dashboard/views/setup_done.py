@@ -15,9 +15,10 @@ def setup_done():
         "setup_done",
         value="true",
         expires=arrow.now().shift(days=30).datetime,
-        secure=True if URL.startswith("https") else False,
+        secure=bool(URL.startswith("https")),
         httponly=True,
         samesite="Lax",
     )
+
 
     return response

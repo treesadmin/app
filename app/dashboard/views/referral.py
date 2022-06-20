@@ -13,8 +13,8 @@ _REFERRAL_PATTERN = r"[0-9a-z-_]{3,}"
 @dashboard_bp.route("/referral", methods=["GET", "POST"])
 @login_required
 def referral_route():
-    if request.method == "POST":
-        if request.form.get("form-name") == "create":
+    if request.form.get("form-name") == "create":
+        if request.method == "POST":
             code = request.form.get("code")
             if re.fullmatch(_REFERRAL_PATTERN, code) is None:
                 flash(
@@ -35,7 +35,8 @@ def referral_route():
             return redirect(
                 url_for("dashboard.referral_route", highlight_id=referral.id)
             )
-        elif request.form.get("form-name") == "update":
+    elif request.form.get("form-name") == "update":
+        if request.method == "POST":
             referral_id = request.form.get("referral-id")
             referral = Referral.get(referral_id)
             if referral and referral.user_id == current_user.id:
@@ -45,7 +46,8 @@ def referral_route():
                 return redirect(
                     url_for("dashboard.referral_route", highlight_id=referral.id)
                 )
-        elif request.form.get("form-name") == "delete":
+    elif request.form.get("form-name") == "delete":
+        if request.method == "POST":
             referral_id = request.form.get("referral-id")
             referral = Referral.get(referral_id)
             if referral and referral.user_id == current_user.id:
@@ -60,14 +62,14 @@ def referral_route():
         highlight_id = int(highlight_id)
 
     referrals = Referral.query.filter_by(user_id=current_user.id).all()
-    # make sure the highlighted referral is the first referral
-    highlight_index = None
-    for ix, referral in enumerate(referrals):
-        if referral.id == highlight_id:
-            highlight_index = ix
-            break
-
-    if highlight_index:
+    if highlight_index := next(
+        (
+            ix
+            for ix, referral in enumerate(referrals)
+            if referral.id == highlight_id
+        ),
+        None,
+    ):
         referrals.insert(0, referrals.pop(highlight_index))
 
     payouts = Payout.query.filter_by(user_id=current_user.id).all()

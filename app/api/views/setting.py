@@ -14,7 +14,7 @@ from app.models import (
 
 
 def setting_to_dict(user: User):
-    ret = {
+    return {
         "notification": user.notification,
         "alias_generator": "word"
         if user.alias_generator == AliasGeneratorEnum.word.value
@@ -22,8 +22,6 @@ def setting_to_dict(user: User):
         "random_alias_default_domain": user.default_random_alias_domain(),
         "sender_format": SenderFormatEnum.get_name(user.sender_format),
     }
-
-    return ret
 
 
 @api_bp.route("/setting")
@@ -105,9 +103,7 @@ def get_available_domains_for_random_alias():
     """
     user = g.user
 
-    ret = [
-        (is_sl, domain) for is_sl, domain in user.available_domains_for_random_alias()
-    ]
+    ret = list(user.available_domains_for_random_alias())
 
     return jsonify(ret)
 

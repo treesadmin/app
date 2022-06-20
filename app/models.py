@@ -113,7 +113,7 @@ class ModelMixin(object):
             for n in self.__table__.c.keys()
             if n not in self._repr_hide
         )
-        return "%s(%s)" % (self.__class__.__name__, values)
+        return f"{self.__class__.__name__}({values})"
 
 
 class File(db.Model, ModelMixin):
@@ -130,31 +130,19 @@ class File(db.Model, ModelMixin):
 class EnumE(enum.Enum):
     @classmethod
     def has_value(cls, value: int) -> bool:
-        return value in set(item.value for item in cls)
+        return value in {item.value for item in cls}
 
     @classmethod
     def get_name(cls, value: int) -> Optional[str]:
-        for item in cls:
-            if item.value == value:
-                return item.name
-
-        return None
+        return next((item.name for item in cls if item.value == value), None)
 
     @classmethod
     def has_name(cls, name: str) -> bool:
-        for item in cls:
-            if item.name == name:
-                return True
-
-        return False
+        return any(item.name == name for item in cls)
 
     @classmethod
     def get_value(cls, name: str) -> Optional[int]:
-        for item in cls:
-            if item.name == name:
-                return item.value
-
-        return None
+        return next((item.value for item in cls if item.name == name), None)
 
 
 class PlanEnum(EnumE):
@@ -637,15 +625,9 @@ class User(db.Model, ModelMixin, UserMixin, PasswordOracle):
         Return None if the subscription is already expired
         TODO: support user unsubscribe and re-subscribe
         """
-        sub = Subscription.get_by(user_id=self.id)
-
-        if sub:
+        if sub := Subscription.get_by(user_id=self.id):
             # sub is active until the next billing_date + 1
-            if sub.next_bill_date >= arrow.now().shift(days=-1).date():
-                return sub
-            # past subscription, user is considered not having a subscription = free plan
-            else:
-                return None
+            return sub if sub.next_bill_date >= arrow.now().shift(days=-1).date() else None
         else:
             return sub
 
@@ -654,12 +636,7 @@ class User(db.Model, ModelMixin, UserMixin, PasswordOracle):
 
     def mailboxes(self) -> List["Mailbox"]:
         """list of mailbox that user own"""
-        mailboxes = []
-
-        for mailbox in Mailbox.query.filter_by(user_id=self.id, verified=True):
-            mailboxes.append(mailbox)
-
-        return mailboxes
+        return list(Mailbox.query.filter_by(user_id=self.id, verified=True))
 
     def nb_directory(self):
         return Directory.query.filter_by(user_id=self.id).count()
@@ -676,12 +653,11 @@ class User(db.Model, ModelMixin, UserMixin, PasswordOracle):
         - whether the domain belongs to SimpleLogin
         - the domain
         """
-        res = []
-        for domain in self.available_sl_domains():
-            res.append((True, domain))
-
-        for custom_domain in self.verified_custom_domains():
-            res.append((False, custom_domain.domain))
+        res = [(True, domain) for domain in self.available_sl_domains()]
+        res.extend(
+            (False, custom_domain.domain)
+            for custom_domain in self.verified_custom_domains()
+        )
 
         return res
 
@@ -723,9 +699,7 @@ class User(db.Model, ModelMixin, UserMixin, PasswordOracle):
         return FIRST_ALIAS_DOMAIN
 
     def fido_enabled(self) -> bool:
-        if self.fido_uuid is not None:
-            return True
-        return False
+        return self.fido_uuid is not None
 
     def two_factor_authentication_enabled(self) -> bool:
         return self.enable_otp or self.fido_enabled()
@@ -746,11 +720,9 @@ class User(db.Model, ModelMixin, UserMixin, PasswordOracle):
                 # alias disabled -> user doesn't want to receive newsletter
                 else:
                     return None, None, False
-            else:
-                # do not handle http POST unsubscribe
-                if UNSUBSCRIBER:
-                    # use * as suffix instead of = as for alias unsubscribe
-                    return self.email, f"mailto:{UNSUBSCRIBER}?subject={self.id}*", True
+            elif UNSUBSCRIBER:
+                # use * as suffix instead of = as for alias unsubscribe
+                return self.email, f"mailto:{UNSUBSCRIBER}?subject={self.id}*", True
 
         return None, None, False
 
@@ -869,7 +841,7 @@ class SocialAuth(db.Model, ModelMixin):
 
 
 def generate_oauth_client_id(client_name) -> str:
-    oauth_client_id = convert_to_id(client_name) + "-" + random_string()
+    oauth_client_id = f"{convert_to_id(client_name)}-{random_string()}"
 
     # check that the client does not exist yet
     if not Client.get_by(oauth_client_id=oauth_client_id):
@@ -950,28 +922,25 @@ class Client(db.Model, ModelMixin):
         # generate a client-id
         oauth_client_id = generate_oauth_client_id(name)
         oauth_client_secret = random_string(40)
-        client = Client.create(
+        return Client.create(
             name=name,
             oauth_client_id=oauth_client_id,
             oauth_client_secret=oauth_client_secret,
             user_id=user_id,
         )
 
-        return client
-
     def get_icon_url(self):
         if self.icon_id:
             return self.icon.get_url()
         else:
-            return URL + "/static/default-icon.svg"
+            return f"{URL}/static/default-icon.svg"
 
     def last_user_login(self) -> "ClientUser":
-        client_user = (
+        if client_user := (
             ClientUser.query.filter(ClientUser.client_id == self.id)
             .order_by(ClientUser.updated_at)
             .first()
-        )
-        if client_user:
+        ):
             return client_user
         return None
 
@@ -1039,9 +1008,9 @@ def generate_email(
     """
     if scheme == AliasGeneratorEnum.uuid.value:
         name = uuid.uuid4().hex if in_hex else uuid.uuid4().__str__()
-        random_email = name + "@" + alias_domain
+        random_email = f"{name}@{alias_domain}"
     else:
-        random_email = random_words() + "@" + alias_domain
+        random_email = f"{random_words()}@{alias_domain}"
 
     random_email = random_email.lower().strip()
 
@@ -1158,9 +1127,7 @@ class Alias(db.Model, ModelMixin):
     @property
     def mailboxes(self):
         ret = [self.mailbox]
-        for m in self._mailboxes:
-            ret.append(m)
-
+        ret.extend(iter(self._mailboxes))
         ret = [mb for mb in ret if mb.verified]
         ret = sorted(ret, key=lambda mb: mb.email)
 
@@ -1168,15 +1135,10 @@ class Alias(db.Model, ModelMixin):
 
     def mailbox_support_pgp(self) -> bool:
         """return True of one of the mailboxes support PGP"""
-        for mb in self.mailboxes:
-            if mb.pgp_enabled():
-                return True
-        return False
+        return any(mb.pgp_enabled() for mb in self.mailboxes)
 
     def pgp_enabled(self) -> bool:
-        if self.mailbox_support_pgp() and not self.disable_pgp:
-            return True
-        return False
+        return bool(self.mailbox_support_pgp() and not self.disable_pgp)
 
     @classmethod
     def create(cls, **kw):
@@ -1209,7 +1171,7 @@ class Alias(db.Model, ModelMixin):
             raise Exception("alias prefix cannot be empty")
 
         # find the right suffix - avoid infinite loop by running this at max 1000 times
-        for i in range(1000):
+        for _ in range(1000):
             suffix = user.get_random_alias_suffix()
             email = f"{prefix}.{suffix}@{FIRST_ALIAS_DOMAIN}"
 
@@ -1270,10 +1232,7 @@ class Alias(db.Model, ModelMixin):
         return alias
 
     def mailbox_email(self):
-        if self.mailbox_id:
-            return self.mailbox.email
-        else:
-            return self.user.email
+        return self.mailbox.email if self.mailbox_id else self.user.email
 
     def unsubscribe_link(self) -> (str, bool):
         """return the unsubscribe link along with whether this is via email (mailto:) or Http POST
@@ -1318,10 +1277,7 @@ class ClientUser(db.Model, ModelMixin):
         return self.alias.email if self.alias_id else self.user.email
 
     def get_user_name(self):
-        if self.name:
-            return self.name
-        else:
-            return self.user.name
+        return self.name or self.user.name
 
     def get_user_info(self) -> dict:
         """return user info according to client scope
@@ -1346,14 +1302,11 @@ class ClientUser(db.Model, ModelMixin):
 
         for scope in self.client.get_scopes():
             if scope == Scope.NAME:
-                if self.name:
-                    res[Scope.NAME.value] = self.name or ""
-                else:
-                    res[Scope.NAME.value] = self.user.name or ""
+                res[Scope.NAME.value] = self.name or "" if self.name else self.user.name or ""
             elif scope == Scope.AVATAR_URL:
                 if self.user.profile_picture_id:
                     if self.default_avatar:
-                        res[Scope.AVATAR_URL.value] = URL + "/static/default-avatar.png"
+                        res[Scope.AVATAR_URL.value] = f"{URL}/static/default-avatar.png"
                     else:
                         res[Scope.AVATAR_URL.value] = self.user.profile_picture.get_url(
                             AVATAR_URL_EXPIRATION
@@ -1469,11 +1422,7 @@ class Contact(db.Model, ModelMixin):
         if name:
             name = name.replace('"', "")
 
-        if name:
-            name = name + " | " + email
-        else:
-            name = email
-
+        name = f"{name} | {email}" if name else email
         # cannot use formataddr here as this field is for email client, not for MTA
         return f'"{name}" <{self.reply_email}>'
 
@@ -1498,10 +1447,11 @@ class Contact(db.Model, ModelMixin):
 
         # Prefix name to formatted email if available
         new_name = (
-            (self.name + " - " + formatted_email)
+            f"{self.name} - {formatted_email}"
             if self.name and self.name != self.website_email.strip()
             else formatted_email
         )
+
 
         new_addr = formataddr((new_name, self.reply_email)).strip()
         return new_addr.strip()
@@ -1593,10 +1543,7 @@ class EmailLog(db.Model, ModelMixin):
             return "forward"
 
     def get_phase(self) -> str:
-        if self.is_reply:
-            return "reply"
-        else:
-            return "forward"
+        return "reply" if self.is_reply else "forward"
 
     def __repr__(self):
         return f"<EmailLog {self.id}>"
@@ -1837,16 +1784,13 @@ class CustomDomain(db.Model, ModelMixin):
 
     @property
     def mailboxes(self):
-        if self._mailboxes:
-            return self._mailboxes
-        else:
-            return [self.user.default_mailbox]
+        return self._mailboxes or [self.user.default_mailbox]
 
     def nb_alias(self):
         return Alias.filter_by(custom_domain_id=self.id).count()
 
     def get_trash_url(self):
-        return URL + f"/dashboard/domains/{self.id}/trash"
+        return f"{URL}/dashboard/domains/{self.id}/trash"
 
     def get_ownership_dns_txt_value(self):
         return f"sl-verification={self.ownership_txt_token}"
@@ -1976,10 +1920,7 @@ class Directory(db.Model, ModelMixin):
 
     @property
     def mailboxes(self):
-        if self._mailboxes:
-            return self._mailboxes
-        else:
-            return [self.user.default_mailbox]
+        return self._mailboxes or [self.user.default_mailbox]
 
     def nb_alias(self):
         return Alias.filter_by(directory_id=self.id).count()
@@ -2049,10 +1990,7 @@ class Mailbox(db.Model, ModelMixin):
     user = db.relationship(User, foreign_keys=[user_id])
 
     def pgp_enabled(self) -> bool:
-        if self.pgp_finger_print and not self.disable_pgp:
-            return True
-
-        return False
+        return bool(self.pgp_finger_print and not self.disable_pgp)
 
     def nb_alias(self):
         return (
@@ -2157,12 +2095,10 @@ class Referral(db.Model, ModelMixin):
 
     @property
     def nb_paid_user(self) -> int:
-        res = 0
-        for user in User.filter_by(referral_id=self.id, activated=True):
-            if user.is_paid():
-                res += 1
-
-        return res
+        return sum(
+            bool(user.is_paid())
+            for user in User.filter_by(referral_id=self.id, activated=True)
+        )
 
     def link(self):
         return f"{LANDING_PAGE_URL}?slref={self.code}"

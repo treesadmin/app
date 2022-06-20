@@ -72,9 +72,11 @@ def get_spf_domain(hostname) -> [str]:
 
             if record.startswith("v=spf1"):
                 parts = record.split(" ")
-                for part in parts:
-                    if part.startswith(_include_spf):
-                        ret.append(part[part.find(_include_spf) + len(_include_spf) :])
+                ret.extend(
+                    part[part.find(_include_spf) + len(_include_spf) :]
+                    for part in parts
+                    if part.startswith(_include_spf)
+                )
 
     return ret
 

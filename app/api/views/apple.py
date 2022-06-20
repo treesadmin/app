@@ -42,13 +42,8 @@ def apple_process_payment():
     receipt_data = data.get("receipt_data")
     is_macapp = "is_macapp" in data
 
-    if is_macapp:
-        password = MACAPP_APPLE_API_SECRET
-    else:
-        password = APPLE_API_SECRET
-
-    apple_sub = verify_receipt(receipt_data, user, password)
-    if apple_sub:
+    password = MACAPP_APPLE_API_SECRET if is_macapp else APPLE_API_SECRET
+    if apple_sub := verify_receipt(receipt_data, user, password):
         return jsonify(ok=True), 200
 
     return jsonify(error="Processing failed"), 400

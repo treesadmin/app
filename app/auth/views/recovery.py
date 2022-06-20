@@ -39,9 +39,7 @@ def recovery_route():
 
     if recovery_form.validate_on_submit():
         code = recovery_form.code.data
-        recovery_code = RecoveryCode.get_by(user_id=user.id, code=code)
-
-        if recovery_code:
+        if recovery_code := RecoveryCode.get_by(user_id=user.id, code=code):
             if recovery_code.used:
                 # Trigger rate limiter
                 g.deduct_limit = True
@@ -50,7 +48,7 @@ def recovery_route():
                 del session[MFA_USER_ID]
 
                 login_user(user)
-                flash(f"Welcome back!", "success")
+                flash("Welcome back!", "success")
 
                 recovery_code.used = True
                 recovery_code.used_at = arrow.now()

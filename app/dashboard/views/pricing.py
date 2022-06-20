@@ -26,7 +26,7 @@ def pricing():
         PADDLE_VENDOR_ID=PADDLE_VENDOR_ID,
         PADDLE_MONTHLY_PRODUCT_ID=PADDLE_MONTHLY_PRODUCT_ID,
         PADDLE_YEARLY_PRODUCT_ID=PADDLE_YEARLY_PRODUCT_ID,
-        success_url=URL + "/dashboard/subscription_success",
+        success_url=f"{URL}/dashboard/subscription_success",
     )
 
 

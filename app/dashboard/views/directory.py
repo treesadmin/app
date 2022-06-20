@@ -142,8 +142,7 @@ def directory():
                         name=new_dir_name, user_id=current_user.id
                     )
                     db.session.commit()
-                    mailbox_ids = request.form.getlist("mailbox_ids")
-                    if mailbox_ids:
+                    if mailbox_ids := request.form.getlist("mailbox_ids"):
                         # check if mailbox is not tempered with
                         mailboxes = []
                         for mailbox_id in mailbox_ids:

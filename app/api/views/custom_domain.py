@@ -97,8 +97,7 @@ def update_custom_domain(custom_domain_id):
         changed = True
 
     if "mailbox_ids" in data:
-        mailbox_ids = [int(m_id) for m_id in data.get("mailbox_ids")]
-        if mailbox_ids:
+        if mailbox_ids := [int(m_id) for m_id in data.get("mailbox_ids")]:
             # check if mailbox is not tempered with
             mailboxes = []
             for mailbox_id in mailbox_ids:

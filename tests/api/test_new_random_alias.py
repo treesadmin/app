@@ -80,18 +80,16 @@ def test_out_of_quota(flask_client):
 def test_too_many_requests(flask_client):
     login(flask_client)
 
-    # can't create more than 5 aliases in 1 minute
+    # to make flask-limiter work with unit test
+    # https://github.com/alisaifee/flask-limiter/issues/147#issuecomment-642683820
+    g._rate_limiting_complete = False
     for _ in range(7):
         r = flask_client.post(
             url_for("api.new_random_alias", hostname="www.test.com", mode="uuid"),
         )
-        # to make flask-limiter work with unit test
-        # https://github.com/alisaifee/flask-limiter/issues/147#issuecomment-642683820
-        g._rate_limiting_complete = False
-    else:
-        # last request
-        assert r.status_code == 429
-        assert r.json == {"error": "Rate limit exceeded"}
+    # last request
+    assert r.status_code == 429
+    assert r.json == {"error": "Rate limit exceeded"}
 
 
 def is_valid_uuid(val):
